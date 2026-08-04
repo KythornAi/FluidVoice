@@ -20,7 +20,7 @@ final class TextSelectionService {
 
         // 1. Try to get the system-wide focused element
         if let focusedElement = getFocusedElement() {
-            if let text = getSelectedText(from: focusedElement) {
+            if let text = getSelectedText(from: focusedElement), !text.isEmpty {
                 self.diag("Selection capture success via system focused element (chars=\(text.count))")
                 return text
             }
@@ -32,7 +32,7 @@ final class TextSelectionService {
             self.diag("Trying frontmost app fallback: \(frontmostApp.bundleIdentifier ?? frontmostApp.localizedName ?? "unknown") pid=\(frontmostApp.processIdentifier)")
             let appElement = AXUIElementCreateApplication(frontmostApp.processIdentifier)
             if let focusedElement = getFocusedElement(from: appElement) {
-                if let text = getSelectedText(from: focusedElement) {
+                if let text = getSelectedText(from: focusedElement), !text.isEmpty {
                     self.diag("Selection capture success via frontmost app focused element (chars=\(text.count))")
                     return text
                 }
@@ -78,12 +78,16 @@ final class TextSelectionService {
         var value: CFTypeRef?
         let result = AXUIElementCopyAttributeValue(element, kAXSelectedTextAttribute as CFString, &value)
 
-        if result == .success, let text = value as? String {
+        if result == .success, let text = value as? String, !text.isEmpty {
             self.diag("kAXSelectedTextAttribute succeeded (chars=\(text.count))")
             return text
         }
 
-        self.diag("kAXSelectedTextAttribute unavailable (\(self.describe(result))) - trying selected range fallback")
+        if result == .success {
+            self.diag("kAXSelectedTextAttribute returned empty - trying selected range fallback")
+        } else {
+            self.diag("kAXSelectedTextAttribute unavailable (\(self.describe(result))) - trying selected range fallback")
+        }
 
         // Fallback: reconstruct selected text from selected range + full value for apps
         // that don't expose kAXSelectedTextAttribute directly.

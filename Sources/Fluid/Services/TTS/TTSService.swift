@@ -65,7 +65,13 @@ final class TTSService: ObservableObject {
     /// and read it aloud. Returns false when nothing could be captured.
     @discardableResult
     func readSelection() -> Bool {
-        guard let text = TextSelectionService.shared.getSelectedText(),
+        var text = TextSelectionService.shared.getSelectedText()
+        if text == nil || text!.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            // Accessibility couldn't read it (web views, some ebook readers) —
+            // fall back to the clipboard-sentinel copy pattern.
+            text = SelectionCopyCapture.capture()
+        }
+        guard let text,
               !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         else {
             DebugLogger.shared.info("Read-aloud: no selected text captured", source: "TTSService")
