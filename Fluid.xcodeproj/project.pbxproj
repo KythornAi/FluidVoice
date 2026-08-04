@@ -24,6 +24,7 @@
 		7CDB0A2F2F3C4D5600FB7CAD /* dictation_fixture.wav in Resources */ = {isa = PBXBuildFile; fileRef = 7CDB0A2B2F3C4D5600FB7CAD /* dictation_fixture.wav */; };
 		7CDB0A302F3C4D5600FB7CAD /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7CDB0A2C2F3C4D5600FB7CAD /* XCTest.framework */; };
 		7CE006BD2E80EBE600DDCCD6 /* AppUpdater in Frameworks */ = {isa = PBXBuildFile; productRef = 7CE006BC2E80EBE600DDCCD6 /* AppUpdater */; };
+		7C0000A12F60000000000001 /* Kokoro in Frameworks */ = {isa = PBXBuildFile; productRef = 7C0000A22F60000000000001 /* Kokoro */; };
 		86CAA2D4EF18433096185602 /* LLMClientRequestBodyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 343B29013F4441D6A797D12D /* LLMClientRequestBodyTests.swift */; };
 /* End PBXBuildFile section */
 
@@ -85,6 +86,7 @@
 				7C9A71022F58B00000FB7CAF /* TranscribeCpp in Frameworks */,
 				7CE006BD2E80EBE600DDCCD6 /* AppUpdater in Frameworks */,
 				7C078DA52E3B386A00FB7CAC /* FluidAudio in Frameworks */,
+				7C0000A12F60000000000001 /* Kokoro in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -192,6 +194,7 @@
 				7CE006BC2E80EBE600DDCCD6 /* AppUpdater */,
 				7C9A71012F58B00000FB7CAF /* TranscribeCpp */,
 				7C5AF14A2F15041600DE21B0 /* MediaRemoteAdapter */,
+				7C0000A22F60000000000001 /* Kokoro */,
 			);
 			productName = FluidVoice;
 			productReference = 7C078D8F2E3B339200FB7CAC /* FluidVoice Debug.app */;
@@ -248,6 +251,7 @@
 				7C3697872ED70F9C005874CE /* XCRemoteSwiftPackageReference "DynamicNotchKit" */,
 				7C9A71002F58B00000FB7CAF /* XCRemoteSwiftPackageReference "transcribe-cpp-swift" */,
 				7C5AF1492F15041600DE21B0 /* XCRemoteSwiftPackageReference "mediaremote-adapter" */,
+				7C0000A32F60000000000001 /* XCLocalSwiftPackageReference "Vendor/kokoro-swift" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 7C078D902E3B339200FB7CAC /* Products */;
@@ -670,6 +674,10 @@
 				minimumVersion = 1.1.1;
 			};
 		};
+		7C0000A32F60000000000001 /* XCLocalSwiftPackageReference "Vendor/kokoro-swift" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Vendor/kokoro-swift;
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -697,6 +705,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 7C9A71002F58B00000FB7CAF /* XCRemoteSwiftPackageReference "transcribe-cpp-swift" */;
 			productName = TranscribeCpp;
+		};
+		7C0000A22F60000000000001 /* Kokoro */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7C0000A32F60000000000001 /* XCRemoteSwiftPackageReference "kokoro-swift" */;
+			productName = Kokoro;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
