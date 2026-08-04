@@ -822,6 +822,10 @@ struct SettingsView: View {
                                         )
                                 )
 
+                                // MARK: - Read Aloud Section (FluidChat fork)
+
+                                ReadAloudSettingsSection()
+
                                 // MARK: - Options Section
 
                                 VStack(spacing: 12) {
