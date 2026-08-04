@@ -131,8 +131,19 @@ final class PiperTTSProvider: NSObject, TTSProvider {
 
         return try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Data, Error>) in
+                // Drain stdout concurrently: piper blocks once the 64 KB pipe
+                // buffer fills, so waiting for termination before reading
+                // deadlocks on any passage longer than ~1.5s of audio.
+                let buffer = ProcessDataBuffer()
+                stdout.fileHandleForReading.readabilityHandler = { handle in
+                    buffer.append(handle.availableData)
+                }
+
                 process.terminationHandler = { proc in
-                    let wav = stdout.fileHandleForReading.readDataToEndOfFile()
+                    stdout.fileHandleForReading.readabilityHandler = nil
+                    buffer.append(stdout.fileHandleForReading.readDataToEndOfFile())
+                    let wav = buffer.snapshot()
+
                     if proc.terminationStatus == 0, wav.count > 44 {
                         continuation.resume(returning: wav)
                     } else {

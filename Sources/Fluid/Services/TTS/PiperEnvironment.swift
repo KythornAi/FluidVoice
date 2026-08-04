@@ -136,9 +136,17 @@ final class PiperEnvironment: ObservableObject {
             process.standardError = stderr
             process.standardOutput = FileHandle.nullDevice
 
+            // Drain stderr concurrently or a chatty child (e.g. pip) can
+            // fill the pipe buffer and deadlock against our wait.
+            let buffer = ProcessDataBuffer()
+            stderr.fileHandleForReading.readabilityHandler = { handle in
+                buffer.append(handle.availableData)
+            }
+
             process.terminationHandler = { proc in
-                let errData = stderr.fileHandleForReading.readDataToEndOfFile()
-                let errText = String(data: errData, encoding: .utf8) ?? ""
+                stderr.fileHandleForReading.readabilityHandler = nil
+                buffer.append(stderr.fileHandleForReading.readDataToEndOfFile())
+                let errText = String(data: buffer.snapshot(), encoding: .utf8) ?? ""
                 if proc.terminationStatus == 0 {
                     continuation.resume()
                 } else {
