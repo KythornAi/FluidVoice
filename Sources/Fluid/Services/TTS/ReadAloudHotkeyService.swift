@@ -14,8 +14,9 @@ import Foundation
 final class ReadAloudHotkeyService {
     static let shared = ReadAloudHotkeyService()
 
-    /// Default: Control + Option + R ("R" for Read).
-    static let defaultShortcut = HotkeyShortcut(keyCode: 15, modifierFlags: [.control, .option])
+    /// Default: Control + R ("R" for Read). Single-modifier combo chosen for
+    /// Kyle's hybrid keyboard, which handles multi-modifier Mac combos poorly.
+    static let defaultShortcut = HotkeyShortcut(keyCode: 15, modifierFlags: [.control])
     private static let shortcutDefaultsKey = "tts.readAloudShortcut"
 
     private var globalMonitor: Any?
