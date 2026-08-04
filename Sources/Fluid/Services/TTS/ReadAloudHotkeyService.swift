@@ -4,7 +4,9 @@
 //
 //  Lightweight global hotkey for read-aloud, deliberately separate from
 //  GlobalHotkeyManager (which is a dictation-specific hold-mode state
-//  machine). Press once to read the current selection; press again to stop.
+//  machine). ⌃R always reads the current selection (taking over mid-
+//  playback); with nothing highlighted it stops the current read.
+//  Pause/resume/replay live on the playback pill.
 //
 
 import AppKit
@@ -81,15 +83,16 @@ final class ReadAloudHotkeyService {
     private func trigger() {
         Task { @MainActor in
             let tts = TTSService.shared
-            if tts.playbackState == .idle {
-                let started = tts.readSelection()
-                DebugLogger.shared.info(
-                    started ? "Read-aloud started via hotkey" : "Read-aloud hotkey: no selection captured",
-                    source: "ReadAloudHotkeyService"
-                )
-            } else {
+            // ⌃R always means "read what's highlighted now". A fresh
+            // selection takes over even mid-playback; only when nothing is
+            // highlighted does it fall back to stopping the current read.
+            if tts.readSelection() {
+                DebugLogger.shared.info("Read-aloud started via hotkey", source: "ReadAloudHotkeyService")
+            } else if tts.playbackState != .idle {
                 tts.stop()
-                DebugLogger.shared.info("Read-aloud stopped via hotkey", source: "ReadAloudHotkeyService")
+                DebugLogger.shared.info("Read-aloud stopped via hotkey (no selection)", source: "ReadAloudHotkeyService")
+            } else {
+                DebugLogger.shared.info("Read-aloud hotkey: no selection captured", source: "ReadAloudHotkeyService")
             }
         }
     }

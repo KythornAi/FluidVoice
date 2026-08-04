@@ -21,19 +21,21 @@ final class PlaybackPillController {
 
     private init() {}
 
-    /// Subscribes to the given TTSService's playback state. Safe to call
+    /// Subscribes to the given TTSService's session state. Safe to call
     /// multiple times. The service is passed in rather than read from
     /// `TTSService.shared` because `start` is called *from* that singleton's
     /// own initializer — touching `shared` there deadlocks dispatch_once.
     func start(observing service: TTSService) {
         guard self.stateSubscription == nil else { return }
-        self.stateSubscription = service.$playbackState
+        // The pill lives for the whole listening session: it appears on the
+        // first speak and stays parked through stops until the user closes
+        // it explicitly (the × button -> dismissSession).
+        self.stateSubscription = service.$hasSession
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] state in
-                switch state {
-                case .speaking, .paused:
+            .sink { [weak self] hasSession in
+                if hasSession {
                     self?.show()
-                case .idle:
+                } else {
                     self?.hide()
                 }
             }

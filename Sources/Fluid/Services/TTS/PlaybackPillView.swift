@@ -29,8 +29,9 @@ struct PlaybackPillView: View {
                     .frame(maxWidth: 180)
             }
 
-            self.pauseResumeButton
+            self.playPauseButton
             self.stopButton
+            self.closeButton
 
             Divider()
                 .frame(height: 16)
@@ -51,11 +52,18 @@ struct PlaybackPillView: View {
 
     // MARK: - Controls
 
-    private var pauseResumeButton: some View {
+    /// One button whose meaning follows the session: pause while speaking,
+    /// resume while paused, and "read selection / replay" when parked.
+    private var playPauseButton: some View {
         Button {
-            self.tts.togglePause()
+            switch self.tts.playbackState {
+            case .speaking:
+                self.tts.pause()
+            case .paused, .idle:
+                self.tts.playFromPill()
+            }
         } label: {
-            Image(systemName: self.tts.playbackState == .paused ? "play.fill" : "pause.fill")
+            Image(systemName: self.tts.playbackState == .speaking ? "pause.fill" : "play.fill")
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(.white)
                 .frame(width: 24, height: 24)
@@ -63,9 +71,18 @@ struct PlaybackPillView: View {
                 .clipShape(Circle())
         }
         .buttonStyle(.plain)
-        .help(self.tts.playbackState == .paused ? "Resume" : "Pause")
+        .help(self.playPauseHelp)
     }
 
+    private var playPauseHelp: String {
+        switch self.tts.playbackState {
+        case .speaking: return "Pause"
+        case .paused: return "Resume"
+        case .idle: return "Read selection (or replay last passage)"
+        }
+    }
+
+    /// Stops the audio but keeps the pill parked — only × dismisses it.
     private var stopButton: some View {
         Button {
             self.tts.stop()
@@ -78,7 +95,24 @@ struct PlaybackPillView: View {
                 .clipShape(Circle())
         }
         .buttonStyle(.plain)
-        .help("Stop")
+        .help("Stop (pill stays parked)")
+        .disabled(self.tts.playbackState == .idle)
+        .opacity(self.tts.playbackState == .idle ? 0.4 : 1)
+    }
+
+    private var closeButton: some View {
+        Button {
+            self.tts.dismissSession()
+        } label: {
+            Image(systemName: "xmark")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(.white.opacity(0.7))
+                .frame(width: 24, height: 24)
+                .background(Color.white.opacity(0.08))
+                .clipShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .help("Close")
     }
 
     /// Cycles through the speed ladder. Changing speed mid-utterance only

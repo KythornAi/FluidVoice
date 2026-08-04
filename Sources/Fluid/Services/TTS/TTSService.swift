@@ -80,7 +80,8 @@ final class TTSService: ObservableObject {
         provider.onStateChange = { [weak self] state in
             guard let self, provider.identifier == self.activeProviderID else { return }
             self.playbackState = state
-            if state == .idle { self.currentText = nil }
+            // Note: currentText intentionally survives .idle so a parked
+            // pill can replay the last passage.
         }
         provider.rate = Self.providerRate(forSpeed: self.playbackSpeed, providerID: provider.identifier)
         self.providers[provider.identifier] = provider
@@ -97,6 +98,11 @@ final class TTSService: ObservableObject {
     }
 
     // MARK: - Playback controls
+
+    /// Whether a listening session exists. True from the first speak until the
+    /// user explicitly closes the pill — stopping playback parks the pill
+    /// rather than dismissing it (Kyle's UX call, 4 Aug 2026).
+    @Published private(set) var hasSession = false
 
     /// Hotkey/menu entry point: grab the highlighted text in the frontmost app
     /// and read it aloud. Returns false when nothing could be captured.
@@ -119,8 +125,29 @@ final class TTSService: ObservableObject {
     }
 
     func speak(text: String) {
+        self.hasSession = true
         self.currentText = text
         self.activeProvider?.speak(text: text)
+    }
+
+    /// Pill play button: resume if paused, read the current selection if any
+    /// is highlighted, otherwise replay the last passage.
+    func playFromPill() {
+        if self.playbackState == .paused {
+            self.resume()
+            return
+        }
+        if self.readSelection() { return }
+        if let text = self.currentText {
+            self.speak(text: text)
+        }
+    }
+
+    /// Pill close button: stop playback and dismiss the parked pill.
+    func dismissSession() {
+        self.stop()
+        self.hasSession = false
+        self.currentText = nil
     }
 
     func pause() { self.activeProvider?.pause() }
