@@ -21,10 +21,13 @@ final class PlaybackPillController {
 
     private init() {}
 
-    /// Subscribes to TTSService playback state. Safe to call multiple times.
-    func start() {
+    /// Subscribes to the given TTSService's playback state. Safe to call
+    /// multiple times. The service is passed in rather than read from
+    /// `TTSService.shared` because `start` is called *from* that singleton's
+    /// own initializer — touching `shared` there deadlocks dispatch_once.
+    func start(observing service: TTSService) {
         guard self.stateSubscription == nil else { return }
-        self.stateSubscription = TTSService.shared.$playbackState
+        self.stateSubscription = service.$playbackState
             .receive(on: DispatchQueue.main)
             .sink { [weak self] state in
                 switch state {

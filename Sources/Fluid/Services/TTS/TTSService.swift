@@ -50,7 +50,7 @@ final class TTSService: ObservableObject {
         self.register(AVSpeechTTSProvider())
         self.register(PiperTTSProvider())
         self.register(KokoroTTSProvider())
-        PlaybackPillController.shared.start()
+        PlaybackPillController.shared.start(observing: self)
     }
 
     // MARK: - Speed
