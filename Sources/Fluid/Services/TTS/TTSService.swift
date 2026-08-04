@@ -29,13 +29,47 @@ final class TTSService: ObservableObject {
         didSet { UserDefaults.standard.set(self.activeProviderID, forKey: Self.activeProviderDefaultsKey) }
     }
 
+    /// User-facing playback speed multiplier (1.0 = normal). Persisted and
+    /// mapped onto each provider's native rate scale (see `providerRate`).
+    @Published var playbackSpeed: Float {
+        didSet {
+            UserDefaults.standard.set(self.playbackSpeed, forKey: Self.speedDefaultsKey)
+            self.applySpeedToProviders()
+        }
+    }
+
     private static let activeProviderDefaultsKey = "tts.activeProviderID"
+    private static let speedDefaultsKey = "tts.playbackSpeed"
     private static let defaultProviderID = "avspeech"
 
     private init() {
         let saved = UserDefaults.standard.string(forKey: Self.activeProviderDefaultsKey)
         self.activeProviderID = saved ?? Self.defaultProviderID
+        let savedSpeed = UserDefaults.standard.object(forKey: Self.speedDefaultsKey) as? Float
+        self.playbackSpeed = savedSpeed ?? 1.0
         self.register(AVSpeechTTSProvider())
+        PlaybackPillController.shared.start()
+    }
+
+    // MARK: - Speed
+
+    private func applySpeedToProviders() {
+        for provider in self.providers.values {
+            provider.rate = Self.providerRate(forSpeed: self.playbackSpeed, providerID: provider.identifier)
+        }
+    }
+
+    /// Maps the user-facing speed multiplier onto each engine's native scale.
+    static func providerRate(forSpeed speed: Float, providerID: String) -> Float {
+        switch providerID {
+        case "avspeech":
+            // AVSpeech rate range is 0.0...1.0 with 0.5 = normal.
+            return max(0.1, min(1.0, 0.5 * speed))
+        default:
+            // Piper (length-scale inverse) and Kokoro take plain multipliers;
+            // those providers translate internally.
+            return speed
+        }
     }
 
     // MARK: - Provider registry
@@ -46,6 +80,7 @@ final class TTSService: ObservableObject {
             self.playbackState = state
             if state == .idle { self.currentText = nil }
         }
+        provider.rate = Self.providerRate(forSpeed: self.playbackSpeed, providerID: provider.identifier)
         self.providers[provider.identifier] = provider
     }
 
