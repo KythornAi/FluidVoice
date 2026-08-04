@@ -51,6 +51,7 @@ final class TTSService: ObservableObject {
         self.register(PiperTTSProvider())
         self.register(KokoroTTSProvider())
         self.register(FishTTSProvider())
+        self.register(OpenAITTSProvider())
         PlaybackPillController.shared.start(observing: self)
     }
 
