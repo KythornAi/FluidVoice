@@ -10,6 +10,19 @@ extension SettingsStore {
         static let fixSpelling = "TextPolishFixSpellingEnabled"
         static let fixGrammar = "TextPolishFixGrammarEnabled"
         static let removeFillers = "TextPolishRemoveFillersEnabled"
+        static let formatMode = "TextPolishFormatMode"
+    }
+
+    /// Format mode preset (Note/Email/Chat/Terminal). Default: Note.
+    var textPolishFormatMode: TextPolishFormatMode {
+        get {
+            let raw = UserDefaults.standard.string(forKey: TextPolishKeys.formatMode) ?? TextPolishFormatMode.note.rawValue
+            return TextPolishFormatMode(rawValue: raw) ?? .note
+        }
+        set {
+            objectWillChange.send()
+            UserDefaults.standard.set(newValue.rawValue, forKey: TextPolishKeys.formatMode)
+        }
     }
 
     /// Spelling locale enforced by the local polish pipeline. Default: UK.

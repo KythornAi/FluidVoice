@@ -765,6 +765,28 @@ extension VoiceEngineSettingsView {
             }
 
             HStack {
+                Text("Format mode")
+                    .font(self.theme.typography.bodySmall)
+                    .foregroundStyle(self.voiceEngineSecondaryText)
+                Spacer()
+                Picker("", selection: Binding<TextPolishFormatMode>(
+                    get: { self.settings.textPolishFormatMode },
+                    set: { self.settings.textPolishFormatMode = $0 }
+                )) {
+                    ForEach(TextPolishFormatMode.allCases) { mode in
+                        Text(mode.displayName).tag(mode)
+                    }
+                }
+                .labelsHidden()
+                .frame(width: 190)
+            }
+
+            Text(self.settings.textPolishFormatMode.modeDescription)
+                .font(.caption2)
+                .foregroundStyle(self.voiceEngineSecondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+
+            HStack {
                 Text("Spelling locale")
                     .font(self.theme.typography.bodySmall)
                     .foregroundStyle(self.voiceEngineSecondaryText)

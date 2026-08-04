@@ -15,6 +15,64 @@ enum TextPolishLocale: String, CaseIterable, Identifiable {
     }
 }
 
+/// Format modes (roadmap §5 Phase 4 stretch, from the VoiceAssist V2 design):
+/// per-context presets that tune how aggressively the local polish pipeline
+/// rewrites dictated text.
+enum TextPolishFormatMode: String, CaseIterable, Identifiable {
+    case note
+    case email
+    case chat
+    case terminal
+
+    var id: String { self.rawValue }
+
+    var displayName: String {
+        switch self {
+        case .note: return "Note"
+        case .email: return "Email"
+        case .chat: return "Chat"
+        case .terminal: return "Terminal"
+        }
+    }
+
+    var modeDescription: String {
+        switch self {
+        case .note:
+            return "Full cleanup: spelling, locale, capitalisation, punctuation."
+        case .email:
+            return "Full cleanup, same as Note — tidy, fully punctuated sentences."
+        case .chat:
+            return "Corrects spelling but keeps casual casing and drops the trailing full stop."
+        case .terminal:
+            return "Near-verbatim: only filler removal and the repetition guard run — no spelling, locale, or capitalisation changes."
+        }
+    }
+
+    /// Whether the grammar tidy may capitalise sentence starts.
+    var allowsCapitalisation: Bool {
+        switch self {
+        case .chat, .terminal: return false
+        case .note, .email: return true
+        }
+    }
+
+    /// Whether the grammar tidy may append a trailing full stop.
+    var allowsTrailingPeriod: Bool {
+        switch self {
+        case .chat, .terminal: return false
+        case .note, .email: return true
+        }
+    }
+
+    /// Whether spelling correction and locale enforcement run.
+    var allowsSpellingAndLocale: Bool {
+        switch self {
+        case .terminal: return false
+        case .note, .email, .chat: return true
+        }
+    }
+}
+
 /// Text Polish Pipeline — ported from VoiceAssist's `text-polish.js`.
 ///
 /// Cleans up dictated text with pure local rules: repetition filtering,
@@ -35,6 +93,7 @@ final class TextPolishService {
         var fixSpelling: Bool = true
         var fixGrammar: Bool = true
         var removeFillerWords: Bool = true
+        var formatMode: TextPolishFormatMode = .note
     }
 
     private var usToUk: [String: String] = [:]
@@ -50,7 +109,8 @@ final class TextPolishService {
             locale: SettingsStore.shared.textPolishLocale,
             fixSpelling: SettingsStore.shared.textPolishFixSpellingEnabled,
             fixGrammar: SettingsStore.shared.textPolishFixGrammarEnabled,
-            removeFillerWords: SettingsStore.shared.textPolishRemoveFillersEnabled
+            removeFillerWords: SettingsStore.shared.textPolishRemoveFillersEnabled,
+            formatMode: SettingsStore.shared.textPolishFormatMode
         )
     }
 
@@ -114,8 +174,9 @@ final class TextPolishService {
 
     /// Basic grammar cleanup: collapse double spaces, remove space before
     /// punctuation, capitalise sentence starts and standalone "i", and ensure
-    /// the text ends with punctuation.
-    private func tidyGrammar(in text: String) -> String {
+    /// the text ends with punctuation. `capitalise` and `trailingPeriod` let
+    /// format modes (Chat/Terminal) keep casual casing and no forced full stop.
+    private func tidyGrammar(in text: String, capitalise: Bool = true, trailingPeriod: Bool = true) -> String {
         var result = text
 
         // Fix double/triple spaces
@@ -124,27 +185,29 @@ final class TextPolishService {
         // Remove space before punctuation
         result = self.replacing(#"\s+([.,!?;:])"#, in: result, with: "$1")
 
-        // Capitalise after sentence-ending punctuation
-        let sentenceInput = result
-        result = self.replacing(#"([.!?])\s+([a-z])"#, in: sentenceInput) { match in
-            let punct = match.capture(1, in: sentenceInput) ?? ""
-            let letter = (match.capture(2, in: sentenceInput) ?? "").uppercased()
-            return punct + " " + letter
-        }
+        if capitalise {
+            // Capitalise after sentence-ending punctuation
+            let sentenceInput = result
+            result = self.replacing(#"([.!?])\s+([a-z])"#, in: sentenceInput) { match in
+                let punct = match.capture(1, in: sentenceInput) ?? ""
+                let letter = (match.capture(2, in: sentenceInput) ?? "").uppercased()
+                return punct + " " + letter
+            }
 
-        // Capitalise first character
-        if let first = result.first, first.isLetter, first.isLowercase {
-            result = first.uppercased() + result.dropFirst()
-        }
+            // Capitalise first character
+            if let first = result.first, first.isLetter, first.isLowercase {
+                result = first.uppercased() + result.dropFirst()
+            }
 
-        // Capitalise standalone "i"
-        result = self.replacing(#"\bi\b"#, in: result, with: "I")
-        // Fix "i'm", "i've", "i'll", "i'd" etc.
-        result = self.replacing(#"\bi'([a-z])"#, in: result, with: "I'$1")
+            // Capitalise standalone "i"
+            result = self.replacing(#"\bi\b"#, in: result, with: "I")
+            // Fix "i'm", "i've", "i'll", "i'd" etc.
+            result = self.replacing(#"\bi'([a-z])"#, in: result, with: "I'$1")
+        }
 
         // Add full stop at end if missing punctuation
         let trimmed = result.trimmingCharacters(in: .whitespaces)
-        if !trimmed.isEmpty, let last = trimmed.last, !".!?".contains(last) {
+        if trailingPeriod, !trimmed.isEmpty, let last = trimmed.last, !".!?".contains(last) {
             result = trimmed + "."
             return result
         }
@@ -287,6 +350,7 @@ final class TextPolishService {
         self.loadDictionariesIfNeeded()
 
         var result = trimmed
+        let mode = options.formatMode
 
         // 1. Repetition filter (first, before other processing)
         result = self.filterRepetition(in: result)
@@ -296,17 +360,24 @@ final class TextPolishService {
             result = self.removeFillers(from: result)
         }
 
-        // 3. Spelling correction
-        if options.fixSpelling {
+        // 3. Spelling correction (skipped in Terminal mode — commands stay verbatim)
+        if options.fixSpelling, mode.allowsSpellingAndLocale {
             result = self.fixMisspellings(in: result)
         }
 
         // 4. Locale enforcement (after spelling fix, working with correct base words)
-        result = self.enforceLocale(in: result, locale: options.locale)
+        if mode.allowsSpellingAndLocale {
+            result = self.enforceLocale(in: result, locale: options.locale)
+        }
 
-        // 5. Grammar tidy (last, so capitalisation applies to final text)
+        // 5. Grammar tidy (last, so capitalisation applies to final text).
+        // Chat mode keeps casual casing and no forced full stop.
         if options.fixGrammar {
-            result = self.tidyGrammar(in: result)
+            result = self.tidyGrammar(
+                in: result,
+                capitalise: mode.allowsCapitalisation,
+                trailingPeriod: mode.allowsTrailingPeriod
+            )
         }
 
         return result
