@@ -153,6 +153,11 @@ extension VoiceEngineSettingsView {
 
                         // Filler Words Section
                         self.fillerWordsSection
+
+                        Divider().padding(.vertical, 4)
+
+                        // Local Polish Section
+                        self.localPolishSection
                     }
                 }
             }
@@ -745,6 +750,57 @@ extension VoiceEngineSettingsView {
             if self.viewModel.removeFillerWordsEnabled {
                 FillerWordsEditor()
             }
+        }
+    }
+
+    var localPolishSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Local Polish Cleanup")
+                    .font(self.theme.typography.bodyStrong)
+                    .foregroundStyle(self.voiceEngineTitleText)
+                Text("Rules-based cleanup applied when \"Local Polish\" is the selected dictation enhancement — no cloud, no API key")
+                    .font(self.theme.typography.bodySmall)
+                    .foregroundStyle(self.voiceEngineSecondaryText)
+            }
+
+            HStack {
+                Text("Spelling locale")
+                    .font(self.theme.typography.bodySmall)
+                    .foregroundStyle(self.voiceEngineSecondaryText)
+                Spacer()
+                Picker("", selection: Binding<TextPolishLocale>(
+                    get: { self.settings.textPolishLocale },
+                    set: { self.settings.textPolishLocale = $0 }
+                )) {
+                    ForEach(TextPolishLocale.allCases) { locale in
+                        Text(locale.displayName).tag(locale)
+                    }
+                }
+                .labelsHidden()
+                .frame(width: 190)
+            }
+
+            Toggle("Correct common misspellings", isOn: Binding(
+                get: { self.settings.textPolishFixSpellingEnabled },
+                set: { self.settings.textPolishFixSpellingEnabled = $0 }
+            ))
+            .toggleStyle(.switch)
+            .font(self.theme.typography.bodySmall)
+
+            Toggle("Grammar tidy (capitalisation, spacing, trailing punctuation)", isOn: Binding(
+                get: { self.settings.textPolishFixGrammarEnabled },
+                set: { self.settings.textPolishFixGrammarEnabled = $0 }
+            ))
+            .toggleStyle(.switch)
+            .font(self.theme.typography.bodySmall)
+
+            Toggle("Remove filler phrases (\"you know\", \"sort of\", \"kind of\")", isOn: Binding(
+                get: { self.settings.textPolishRemoveFillersEnabled },
+                set: { self.settings.textPolishRemoveFillersEnabled = $0 }
+            ))
+            .toggleStyle(.switch)
+            .font(self.theme.typography.bodySmall)
         }
     }
 
