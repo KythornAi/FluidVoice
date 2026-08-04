@@ -198,7 +198,7 @@ final class SettingsStore: ObservableObject {
     }
 
     enum DictationPromptSelection: Equatable {
-        case off, `default`, privateAI
+        case off, `default`, privateAI, localPolish
         case profile(String)
     }
 
@@ -455,6 +455,9 @@ final class SettingsStore: ObservableObject {
             if promptID == PrivateAIProviderPromptFormat.promptSelectionID {
                 return PrivateAIProviderPromptFormat.isAvailable(settings: self) ? .privateAI : .default
             }
+            if promptID == TextPolishService.promptSelectionID {
+                return .localPolish
+            }
             return .profile(promptID)
         }
         return .default
@@ -467,6 +470,8 @@ final class SettingsStore: ObservableObject {
             selectedID = nil
         case .privateAI:
             selectedID = PrivateAIProviderPromptFormat.promptSelectionID
+        case .localPolish:
+            selectedID = TextPolishService.promptSelectionID
         case let .profile(promptID):
             selectedID = promptID
         }
@@ -480,6 +485,8 @@ final class SettingsStore: ObservableObject {
             return nil
         case .privateAI:
             return "__privateAI__"
+        case .localPolish:
+            return "__localPolish__"
         case .default:
             return "__default__"
         case let .profile(promptID):
@@ -491,6 +498,9 @@ final class SettingsStore: ObservableObject {
     func dictationPromptSelection(forConfigurationKey key: String) -> DictationPromptSelection? {
         if key == "__privateAI__" {
             return .privateAI
+        }
+        if key == "__localPolish__" {
+            return .localPolish
         }
         if key == "__default__" {
             return .default
@@ -542,6 +552,9 @@ final class SettingsStore: ObservableObject {
             }
             if key == "__privateAI__" {
                 return (.privateAI, shortcut)
+            }
+            if key == "__localPolish__" {
+                return (.localPolish, shortcut)
             }
             if key.hasPrefix("profile:") {
                 let id = String(key.dropFirst("profile:".count))
@@ -680,6 +693,8 @@ final class SettingsStore: ObservableObject {
             return nil
         case .privateAI:
             return nil
+        case .localPolish:
+            return nil
         case let .profile(promptID):
             return self.dictationPromptProfiles.first(where: { $0.id == promptID && $0.mode.normalized == .dictate })
         case .default:
@@ -708,6 +723,7 @@ final class SettingsStore: ObservableObject {
             }
             return "Default"
         case .privateAI: return PrivateAIProviderFeature.displayName
+        case .localPolish: return "Local Polish"
         case let .profile(promptID):
             guard let profile = self.dictationPromptProfiles.first(where: { $0.id == promptID && $0.mode.normalized == .dictate }) else {
                 return "Default"
@@ -1178,7 +1194,7 @@ final class SettingsStore: ObservableObject {
         switch self.dictationPromptSelection(for: slot) {
         case .off:
             return ""
-        case .default, .privateAI:
+        case .default, .privateAI, .localPolish:
             return self.effectivePromptBody(for: .dictate, appBundleID: appBundleID)
         case let .profile(promptID):
             guard let profile = self.dictationPromptProfiles.first(where: { $0.id == promptID && $0.mode.normalized == .dictate }) else {
@@ -1199,7 +1215,7 @@ final class SettingsStore: ObservableObject {
         }
 
         switch self.dictationPromptSelection(for: slot) {
-        case .off, .default, .privateAI:
+        case .off, .default, .privateAI, .localPolish:
             return self.effectiveSystemPrompt(for: .dictate, appBundleID: appBundleID)
         case let .profile(promptID):
             guard let profile = self.dictationPromptProfiles.first(where: { $0.id == promptID && $0.mode.normalized == .dictate }) else {

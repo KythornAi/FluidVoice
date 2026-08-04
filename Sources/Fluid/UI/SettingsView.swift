@@ -181,6 +181,8 @@ struct SettingsView: View {
                     return "__DEFAULT__"
                 case .privateAI:
                     return PrivateAIProviderPromptFormat.promptSelectionID
+                case .localPolish:
+                    return TextPolishService.promptSelectionID
                 case let .profile(id):
                     return id
                 }
@@ -195,6 +197,8 @@ struct SettingsView: View {
                 case PrivateAIProviderPromptFormat.promptSelectionID:
                     guard PrivateAIProviderPromptFormat.isAvailable(settings: self.settings) else { return }
                     self.settings.setDictationPromptSelection(.privateAI, for: slot)
+                case TextPolishService.promptSelectionID:
+                    self.settings.setDictationPromptSelection(.localPolish, for: slot)
                 default:
                     guard !PrivateAIProviderPromptFormat.isAvailable(settings: self.settings) else { return }
                     self.settings.setDictationPromptSelection(.profile(newValue), for: slot)
@@ -221,6 +225,9 @@ struct SettingsView: View {
                         .tag(PrivateAIProviderPromptFormat.promptSelectionID)
                         .disabled(!privateAILocked)
                 }
+                Text("Local Polish")
+                    .tag(TextPolishService.promptSelectionID)
+                    .disabled(privateAILocked)
                 ForEach(profiles) { profile in
                     Text(profile.name.isEmpty ? "Untitled" : profile.name)
                         .tag(profile.id)

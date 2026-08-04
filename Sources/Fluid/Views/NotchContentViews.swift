@@ -744,6 +744,18 @@ struct NotchExpandedView: View {
                         }
                     }
 
+                    if promptMode.normalized == .dictate && !privateAILocked {
+                        self.promptMenuRow(
+                            "Local Polish",
+                            rowID: TextPolishService.promptSelectionID,
+                            isSelected: self.settings.dictationPromptSelection(for: activeDictationSlot) == .localPolish
+                        ) {
+                            self.contentState.onDictationPromptSelectionRequested?(.localPolish)
+                            self.restoreRecordingTargetFocus()
+                            self.dismissPromptHoverMenu()
+                        }
+                    }
+
                     let profiles = privateAILocked ? [] : self.settings.promptProfiles(for: promptMode)
                     if !profiles.isEmpty {
                         ForEach(profiles) { profile in

@@ -30,6 +30,10 @@ struct DictationProviderRoute: Equatable {
             if selection == .off {
                 return Self(providerID: "", providerKey: "", baseURL: "", model: "", apiKey: "")
             }
+            if selection == .localPolish {
+                // Local rules pipeline: no provider route.
+                return Self(providerID: "", providerKey: "", baseURL: "", model: "", apiKey: "")
+            }
             if selection == .privateAI {
                 return self.privateAIRoute(settings: settings)
             }
@@ -114,7 +118,7 @@ struct DictationProviderRoute: Equatable {
         appBundleID: String?
     ) -> SettingsStore.DictationPromptSelection {
         let selection = settings.dictationPromptSelection(for: dictationSlot)
-        guard selection != .off, selection != .privateAI else { return selection }
+        guard selection != .off, selection != .privateAI, selection != .localPolish else { return selection }
 
         let usesOnlyAppBindings = settings.promptRoutingScope(for: .dictate) == .selectedAppsOnly
         guard usesOnlyAppBindings || selection == .default else { return selection }
@@ -151,6 +155,12 @@ final class DictationPostProcessingService {
         }
 
         let settings = SettingsStore.shared
+
+        if settings.dictationPromptSelection(for: dictationSlot) == .localPolish {
+            let polished = TextPolishService.shared.polish(trimmed)
+            return Result(text: ASRService.applyGAAVFormatting(polished), providerID: "local-polish", model: "rules")
+        }
+
         let resolved = DictationProviderRoute.resolveForPostProcessing(
             settings: settings,
             dictationSlot: dictationSlot

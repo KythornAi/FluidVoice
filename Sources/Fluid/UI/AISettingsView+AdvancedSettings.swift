@@ -993,6 +993,28 @@ extension AIEnhancementSettingsView {
                             isEnabled: !isSelectedAppsOnly
                         )
 
+                        if mode.normalized == .dictate {
+                            let localPolishSelection = SettingsStore.DictationPromptSelection.localPolish
+                            let localPolishConfiguration = self.settings.dictationPromptConfiguration(for: localPolishSelection)
+                            let isLocalPolishDefault = self.viewModel.isDictationPromptSelection(.localPolish, for: .primary)
+                            self.promptProfileCard(
+                                cardKey: "\(mode.normalized.rawValue)-localPolish",
+                                title: "Local Polish",
+                                subtitle: "On-device rules: spelling, UK/US locale, grammar — no API key",
+                                mode: mode,
+                                isSelected: isLocalPolishDefault,
+                                assignments: PromptCardAssignments(
+                                    isDefault: isLocalPolishDefault,
+                                    shortcutDisplay: localPolishConfiguration.shortcut?.displayString,
+                                    modelPicker: nil,
+                                    onMakeDefault: {
+                                        self.viewModel.setDictationPromptSelection(.localPolish, for: .primary)
+                                    }
+                                ),
+                                isEnabled: !isSelectedAppsOnly
+                            )
+                        }
+
                         if !customProfiles.isEmpty {
                             ForEach(customProfiles) { profile in
                                 let profileSelection = SettingsStore.DictationPromptSelection.profile(profile.id)

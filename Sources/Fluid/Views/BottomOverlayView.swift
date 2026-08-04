@@ -1546,6 +1546,34 @@ private struct BottomOverlayPromptMenuView: View {
     }
 
     @ViewBuilder
+    private func localPolishRow() -> some View {
+        let activeSlot = self.contentState.activeDictationShortcutSlot ?? .primary
+        let isSelected = self.settings.dictationPromptSelection(for: activeSlot) == .localPolish
+        Button(action: {
+            self.contentState.onDictationPromptSelectionRequested?(.localPolish)
+            self.restoreTypingTargetApp()
+            self.onDismissRequested()
+        }) {
+            HStack {
+                Text("Local Polish")
+                Spacer()
+                if isSelected {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 10, weight: .semibold))
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background(self.rowBackground(isSelected: isSelected, rowID: TextPolishService.promptSelectionID))
+        }
+        .buttonStyle(.plain)
+        .help("Clean up dictation locally — spelling, UK/US spelling, grammar. No cloud, no API key.")
+        .onHover { hovering in
+            self.hoveredRowID = hovering ? TextPolishService.promptSelectionID : nil
+        }
+    }
+
+    @ViewBuilder
     private func privateAIRow() -> some View {
         let activeSlot = self.contentState.activeDictationShortcutSlot ?? .primary
         let isAvailable = PrivateAIProviderPromptFormat.isAvailable(settings: self.settings)
@@ -1633,6 +1661,10 @@ private struct BottomOverlayPromptMenuView: View {
 
             if self.promptMode.normalized == .dictate && PrivateFeatures.privateAIProvider {
                 self.privateAIRow()
+            }
+
+            if self.promptMode.normalized == .dictate && !self.privateAILocked {
+                self.localPolishRow()
             }
 
             if !self.privateAILocked && !profiles.isEmpty {

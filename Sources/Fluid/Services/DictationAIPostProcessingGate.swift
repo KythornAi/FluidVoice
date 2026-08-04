@@ -21,6 +21,11 @@ enum DictationAIPostProcessingGate {
             return false
         }
 
+        if promptSelection == .localPolish {
+            // Local rules pipeline: always configured, no provider or key needed.
+            return true
+        }
+
         if promptSelection == .privateAI {
             let route = DictationProviderRoute.resolve(
                 settings: settings,

@@ -896,6 +896,9 @@ struct ContentView: View {
         dictationSlot: SettingsStore.DictationShortcutSlot? = nil,
         appBundleID: String? = nil
     ) -> (provider: String?, model: String?) {
+        if SettingsStore.shared.dictationPromptSelection(for: dictationSlot ?? .primary) == .localPolish {
+            return (provider: "local-polish", model: "rules")
+        }
         let route = DictationProviderRoute.resolve(
             settings: SettingsStore.shared,
             dictationSlot: dictationSlot,
@@ -1776,6 +1779,14 @@ struct ContentView: View {
         dictationSlot: SettingsStore.DictationShortcutSlot? = nil,
         streamHandler: PrivateAIStreamHandler? = nil
     ) async throws -> String {
+        // Local polish (rules pipeline) runs entirely on-device — short-circuit
+        // before any provider route resolution.
+        if overrideSystemPrompt == nil,
+           SettingsStore.shared.dictationPromptSelection(for: dictationSlot ?? .primary) == .localPolish
+        {
+            return TextPolishService.shared.polish(inputText)
+        }
+
         let appInfo = self.recordingAppInfo ?? self.getCurrentAppInfo()
         let route = DictationProviderRoute.resolve(
             settings: SettingsStore.shared,
@@ -3297,6 +3308,8 @@ struct ContentView: View {
                 break
             case .privateAI:
                 guard privateAIAvailable else { return }
+            case .localPolish:
+                break
             case .default, .profile:
                 guard !privateAIAvailable else { return }
             }
@@ -3706,6 +3719,10 @@ extension ContentView {
             self.promptModeOverrideText = nil
             NotchContentState.shared.promptModeOverrideProfileName = PrivateAIProviderFeature.displayName
             NotchContentState.shared.promptModeOverrideProfileID = PrivateAIProviderPromptFormat.promptSelectionID
+        case .localPolish:
+            self.promptModeOverrideText = nil
+            NotchContentState.shared.promptModeOverrideProfileName = "Local Polish"
+            NotchContentState.shared.promptModeOverrideProfileID = TextPolishService.promptSelectionID
         case let .profile(profileID):
             guard let profile = settings.selectedDictationPromptProfile(for: slot) ?? settings.dictationPromptProfiles.first(where: {
                 $0.id == profileID && $0.mode.normalized == .dictate
