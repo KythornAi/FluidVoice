@@ -48,6 +48,7 @@ final class TTSService: ObservableObject {
         let savedSpeed = UserDefaults.standard.object(forKey: Self.speedDefaultsKey) as? Float
         self.playbackSpeed = savedSpeed ?? 1.0
         self.register(AVSpeechTTSProvider())
+        self.register(PiperTTSProvider())
         PlaybackPillController.shared.start()
     }
 
