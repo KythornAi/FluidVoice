@@ -18,6 +18,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     // Cached menu items to avoid rebuilding entire menu
     private var statusMenuItem: NSMenuItem?
     private var copyLastTranscriptMenuItem: NSMenuItem?
+    private var readAloudMenuItem: NSMenuItem?
     private var rollbackMenuItem: NSMenuItem?
     private var microphoneMenuItem: NSMenuItem?
     private var microphoneSubmenu: NSMenu?
@@ -488,10 +489,19 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         menu.addItem(copyLastTranscriptItem)
         self.copyLastTranscriptMenuItem = copyLastTranscriptItem
 
+        let readAloudItem = NSMenuItem(
+            title: "Read Selection",
+            action: #selector(readAloudSelection(_:)),
+            keyEquivalent: ""
+        )
+        readAloudItem.target = self
+        menu.addItem(readAloudItem)
+        self.readAloudMenuItem = readAloudItem
+
         menu.addItem(.separator())
 
         // Open Main Window
-        let openItem = NSMenuItem(title: "Open Fluid Voice", action: #selector(openMainWindow), keyEquivalent: "")
+        let openItem = NSMenuItem(title: "Open FluidChat", action: #selector(openMainWindow), keyEquivalent: "")
         openItem.target = self
         menu.addItem(openItem)
 
@@ -541,7 +551,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
         // Quit
         let quitItem = NSMenuItem(
-            title: "Quit Fluid Voice",
+            title: "Quit FluidChat",
             action: #selector(NSApplication.terminate(_:)),
             keyEquivalent: "q"
         )
@@ -570,6 +580,12 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         self.statusMenuItem?.title = statusTitle
         self.copyLastTranscriptMenuItem?.isEnabled = self.canCopyLastTranscript
         self.microphoneMenuItem?.isEnabled = true
+
+        // Read-aloud item reflects playback state; title carries the hotkey hint.
+        let shortcutHint = " (\(ReadAloudHotkeyService.shared.shortcut.displayString))"
+        self.readAloudMenuItem?.title = TTSService.shared.playbackState == .idle
+            ? "Read Selection\(shortcutHint)"
+            : "Stop Reading\(shortcutHint)"
 
         // Update rollback availability text
         self.rollbackMenuItem?.isEnabled = SimpleUpdater.shared.hasRollbackBackup()
@@ -671,6 +687,20 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
         _ = ClipboardService.copyToClipboard(text)
         DebugLogger.shared.info("Menu action: Copied latest transcription to clipboard", source: "MenuBarManager")
+    }
+
+    @objc private func readAloudSelection(_ sender: Any?) {
+        let tts = TTSService.shared
+        if tts.playbackState == .idle {
+            let started = tts.readSelection()
+            DebugLogger.shared.info(
+                started ? "Menu action: Read-aloud started" : "Menu action: Read-aloud found no selected text",
+                source: "MenuBarManager"
+            )
+        } else {
+            tts.stop()
+            DebugLogger.shared.info("Menu action: Read-aloud stopped", source: "MenuBarManager")
+        }
     }
 
     @objc private func selectMicrophone(_ sender: NSMenuItem) {
@@ -907,7 +937,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         guard window.styleMask.contains(.titled) else { return false }
         guard window.canBecomeKey else { return false }
         guard window.isMiniaturized == false else { return false }
-        return window.title == "FluidVoice" || window.title.contains("FluidVoice")
+        return window.title == "FluidChat" || window.title.contains("FluidChat") || window.title.contains("FluidVoice")
     }
 
     @objc private func openPreferences() {

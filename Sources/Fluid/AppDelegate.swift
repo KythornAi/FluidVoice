@@ -33,6 +33,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
 
         // Initialize app settings (dock visibility, etc.)
         SettingsStore.shared.initializeAppSettings()
+
+        // Start the read-aloud global hotkey (Phase 1: FluidChat read-aloud MVP).
+        Task { @MainActor in
+            ReadAloudHotkeyService.shared.start()
+        }
         let shouldOfferMLXUpgrade = PrivateAIMLXUpgradeCoordinator.prepareOfferIfNeeded()
         LocalAPIServer.shared.start()
 
@@ -325,7 +330,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     private func isMainWindow(_ window: NSWindow) -> Bool {
         guard window.level == .normal else { return false }
         guard window.styleMask.contains(.titled) else { return false }
-        return window.title == "FluidVoice" || window.title.contains("FluidVoice")
+        return window.title == "FluidChat" || window.title.contains("FluidChat") || window.title.contains("FluidVoice")
     }
 
     // MARK: - Periodic Update Checks
