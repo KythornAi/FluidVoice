@@ -20,6 +20,17 @@ struct ReadAloudSettingsSection: View {
     /// Kokoro voices currently downloading.
     @State private var kokoroDownloading: Set<String> = []
 
+    // Cloud engine state (Phase 3)
+    /// Bumped when a cloud API key is saved/removed so rows refresh.
+    @State private var cloudKeyRevision = 0
+    @State private var fishKeyDraft = ""
+    @State private var openAIKeyDraft = ""
+    @State private var cloudKeyError: String?
+    @State private var fishVoices: [(id: String, title: String)] = []
+    @State private var fishVoicesLoading = false
+    @State private var fishCredit: String?
+    @State private var fishCreditLoading = false
+
     @Environment(\.theme) private var theme
     @Environment(\.colorScheme) private var colorScheme
 
@@ -36,7 +47,7 @@ struct ReadAloudSettingsSection: View {
                 .font(self.theme.typography.bodySmallStrong)
                 .foregroundStyle(self.titleText)
 
-            Text("Highlight text anywhere and press the read-aloud shortcut to hear it. Engines are all local and free; switch any time without a rebuild.")
+            Text("Highlight text anywhere and press the read-aloud shortcut to hear it. Local engines work free and offline; cloud engines are optional and use your own API key.")
                 .font(.caption)
                 .foregroundStyle(self.secondaryText)
 
@@ -77,6 +88,20 @@ struct ReadAloudSettingsSection: View {
                 self.kokoroSection
             }
 
+            // MARK: Fish Audio (cloud)
+
+            if self.tts.activeProviderID == "fishaudio" {
+                Divider().opacity(0.2)
+                self.fishSection
+            }
+
+            // MARK: OpenAI TTS (cloud)
+
+            if self.tts.activeProviderID == "openaitts" {
+                Divider().opacity(0.2)
+                self.openAISection
+            }
+
             Divider().opacity(0.2)
 
             // MARK: Preview
@@ -109,6 +134,8 @@ struct ReadAloudSettingsSection: View {
         switch self.tts.activeProviderID {
         case "piper": return self.piperEnvironment.status != .ready
         case "kokoro": return self.kokoroEnvironment.status != .ready
+        case "fishaudio": return !self.cloudHasKey(FishTTSProvider.keychainProviderID)
+        case "openaitts": return !self.cloudHasKey(OpenAITTSProvider.keychainProviderID)
         default: return false
         }
     }
@@ -119,6 +146,12 @@ struct ReadAloudSettingsSection: View {
             return "Built-in macOS voice (follows System Settings > Spoken Content)."
         case "piper":
             return "Local neural voices, downloaded on demand."
+        case "kokoro":
+            return "Local neural voice, runs on Apple Silicon."
+        case "fishaudio":
+            return "Cloud voices on Fish Audio's free developer tier (~1 hr/month) with your own API key."
+        case "openaitts":
+            return "OpenAI cloud voices, billed to your own API key."
         default:
             return "Local neural voice."
         }
@@ -314,6 +347,228 @@ struct ReadAloudSettingsSection: View {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    // MARK: - Cloud providers (Phase 3)
+
+    /// Keychain lookup with a refresh dependency on `cloudKeyRevision`.
+    private func cloudHasKey(_ keychainProviderID: String) -> Bool {
+        _ = self.cloudKeyRevision
+        return KeychainService.shared.containsKey(for: keychainProviderID)
+    }
+
+    /// Shared API-key row for cloud engines. Keys go through the existing
+    /// KeychainService (same store as the AI-enhancement providers); they
+    /// are never logged or shown after saving.
+    private func cloudKeyRow(
+        title: String,
+        keychainProviderID: String,
+        draft: Binding<String>
+    ) -> some View {
+        let hasKey = self.cloudHasKey(keychainProviderID)
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .center) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(self.theme.typography.bodyStrong)
+                        .foregroundStyle(self.titleText)
+                    Text(hasKey
+                         ? "Saved in your macOS Keychain."
+                         : "Required — stored only in your macOS Keychain.")
+                        .font(self.theme.typography.bodySmall)
+                        .foregroundStyle(self.secondaryText)
+                }
+
+                Spacer()
+
+                SecureField(hasKey ? "Replace key…" : "Paste API key…", text: draft)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 180)
+
+                Button("Save") {
+                    let key = draft.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !key.isEmpty else { return }
+                    do {
+                        try KeychainService.shared.storeKey(key, for: keychainProviderID)
+                        // Verify read-back so a denied Keychain prompt surfaces here.
+                        _ = try KeychainService.shared.fetchKey(for: keychainProviderID)
+                        draft.wrappedValue = ""
+                        self.cloudKeyError = nil
+                        self.cloudKeyRevision &+= 1
+                    } catch {
+                        self.cloudKeyError = "Could not save to Keychain. Choose \"Always Allow\" if macOS asks, then try again."
+                    }
+                }
+                .disabled(draft.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+                if hasKey {
+                    Button("Remove") {
+                        try? KeychainService.shared.deleteKey(for: keychainProviderID)
+                        self.cloudKeyRevision &+= 1
+                    }
+                }
+            }
+
+            if let error = self.cloudKeyError {
+                Text(error)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var fishSection: some View {
+        self.cloudKeyRow(
+            title: "Fish Audio API Key",
+            keychainProviderID: FishTTSProvider.keychainProviderID,
+            draft: self.$fishKeyDraft
+        )
+
+        if self.cloudHasKey(FishTTSProvider.keychainProviderID) {
+            Divider().opacity(0.2)
+            self.fishVoicePicker
+            Divider().opacity(0.2)
+            self.fishCreditRow
+        }
+    }
+
+    private var fishVoicePicker: some View {
+        HStack(alignment: .center) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Voice")
+                    .font(self.theme.typography.bodyStrong)
+                    .foregroundStyle(self.titleText)
+                Text("Voices from your Fish Audio account (fish.audio).")
+                    .font(self.theme.typography.bodySmall)
+                    .foregroundStyle(self.secondaryText)
+            }
+
+            Spacer()
+
+            if self.fishVoicesLoading {
+                ProgressView().controlSize(.small)
+            }
+
+            Picker("", selection: Binding(
+                get: { (self.tts.activeProvider as? FishTTSProvider)?.selectedVoiceID ?? "" },
+                set: { (self.tts.activeProvider as? FishTTSProvider)?.selectedVoiceID = $0 }
+            )) {
+                Text("Fish default voice").tag("")
+                ForEach(self.fishVoices, id: \.id) { voice in
+                    Text(voice.title).tag(voice.id)
+                }
+            }
+            .pickerStyle(.menu)
+            .frame(width: 200, alignment: .trailing)
+
+            Button {
+                self.refreshFishAccountInfo()
+            } label: {
+                Image(systemName: "arrow.clockwise")
+            }
+            .buttonStyle(.borderless)
+            .help("Refresh voice list and credit balance")
+        }
+        .task(id: self.cloudKeyRevision) {
+            self.refreshFishAccountInfo()
+        }
+    }
+
+    private var fishCreditRow: some View {
+        HStack {
+            Text("Free-tier credit")
+                .font(self.theme.typography.bodyStrong)
+                .foregroundStyle(self.titleText)
+            Spacer()
+            if self.fishCreditLoading {
+                ProgressView().controlSize(.small)
+            } else if let credit = self.fishCredit {
+                Text(credit)
+                    .font(self.theme.typography.bodySmall)
+                    .foregroundStyle(self.secondaryText)
+            } else {
+                Text("—")
+                    .font(self.theme.typography.bodySmall)
+                    .foregroundStyle(self.secondaryText)
+            }
+        }
+    }
+
+    private func refreshFishAccountInfo() {
+        guard let key = try? KeychainService.shared.fetchKey(for: FishTTSProvider.keychainProviderID),
+              !key.isEmpty
+        else { return }
+        self.fishVoicesLoading = true
+        self.fishCreditLoading = true
+        Task {
+            if let voices = try? await FishTTSProvider.fetchVoices(apiKey: key) {
+                self.fishVoices = voices
+            }
+            self.fishVoicesLoading = false
+        }
+        Task {
+            self.fishCredit = try? await FishTTSProvider.fetchCredit(apiKey: key)
+            self.fishCreditLoading = false
+        }
+    }
+
+    @ViewBuilder
+    private var openAISection: some View {
+        self.cloudKeyRow(
+            title: "OpenAI API Key",
+            keychainProviderID: OpenAITTSProvider.keychainProviderID,
+            draft: self.$openAIKeyDraft
+        )
+
+        if self.cloudHasKey(OpenAITTSProvider.keychainProviderID) {
+            Divider().opacity(0.2)
+
+            HStack(alignment: .center) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Voice")
+                        .font(self.theme.typography.bodyStrong)
+                        .foregroundStyle(self.titleText)
+                    Text("Usage is billed to your OpenAI account.")
+                        .font(self.theme.typography.bodySmall)
+                        .foregroundStyle(self.secondaryText)
+                }
+
+                Spacer()
+
+                Picker("", selection: Binding(
+                    get: { (self.tts.activeProvider as? OpenAITTSProvider)?.selectedVoiceID ?? OpenAITTSProvider.defaultVoice },
+                    set: { (self.tts.activeProvider as? OpenAITTSProvider)?.selectedVoiceID = $0 }
+                )) {
+                    ForEach(OpenAITTSProvider.voices, id: \.id) { voice in
+                        Text(voice.label).tag(voice.id)
+                    }
+                }
+                .pickerStyle(.menu)
+                .frame(width: 230, alignment: .trailing)
+            }
+
+            Divider().opacity(0.2)
+
+            HStack(alignment: .center) {
+                Text("Model")
+                    .font(self.theme.typography.bodyStrong)
+                    .foregroundStyle(self.titleText)
+
+                Spacer()
+
+                Picker("", selection: Binding(
+                    get: { (self.tts.activeProvider as? OpenAITTSProvider)?.selectedModel ?? OpenAITTSProvider.defaultModel },
+                    set: { (self.tts.activeProvider as? OpenAITTSProvider)?.selectedModel = $0 }
+                )) {
+                    ForEach(OpenAITTSProvider.models, id: \.id) { model in
+                        Text(model.label).tag(model.id)
+                    }
+                }
+                .pickerStyle(.menu)
+                .frame(width: 230, alignment: .trailing)
             }
         }
     }
