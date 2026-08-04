@@ -1530,6 +1530,13 @@ struct SettingsView: View {
                     }
                     .padding(16)
                 }
+
+                // Bottom overscroll allowance: NSHostingView inside the legacy
+                // NSScrollView under-measures the SwiftUI content height slightly,
+                // which clips the last card. A transparent tail spacer absorbs it.
+                Color.clear
+                    .frame(height: 48)
+                    .allowsHitTesting(false)
             }
             .padding(16)
         }
@@ -2657,8 +2664,6 @@ private extension SettingsView {
                 )
             )
             .disabled(self.asr.isRunning)
-
-            Divider().padding(.vertical, 8)
         }
     }
 }

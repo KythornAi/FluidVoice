@@ -74,6 +74,38 @@ struct ReadAloudSettingsSection: View {
                 .frame(width: 230, alignment: .trailing)
             }
 
+            Divider().opacity(0.2)
+
+            // MARK: Playback speed
+
+            HStack(alignment: .center) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Playback Speed")
+                        .font(self.theme.typography.bodyStrong)
+                        .foregroundStyle(self.titleText)
+                    Text("Applies to every engine. Also adjustable from the playback pill.")
+                        .font(self.theme.typography.bodySmall)
+                        .foregroundStyle(self.secondaryText)
+                }
+
+                Spacer()
+
+                Text(PlaybackPillView.speedLabel(self.tts.playbackSpeed))
+                    .font(self.theme.typography.bodySmall.monospaced())
+                    .foregroundStyle(self.secondaryText)
+                    .frame(width: 40, alignment: .trailing)
+
+                Slider(
+                    value: Binding(
+                        get: { Double(self.tts.playbackSpeed) },
+                        set: { self.tts.playbackSpeed = Float($0) }
+                    ),
+                    in: 0.75 ... 2.0,
+                    step: 0.25
+                )
+                .frame(width: 160, alignment: .trailing)
+            }
+
             // MARK: Piper voice management
 
             if self.tts.activeProviderID == "piper" {

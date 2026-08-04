@@ -11,8 +11,7 @@ import SwiftUI
 
 struct PlaybackPillView: View {
     @ObservedObject private var tts = TTSService.shared
-
-    private static let speedSteps: [Float] = [0.75, 1.0, 1.25, 1.5, 1.75, 2.0]
+    @State private var showSpeedPopover = false
 
     var body: some View {
         HStack(spacing: 10) {
@@ -115,12 +114,13 @@ struct PlaybackPillView: View {
         .help("Close")
     }
 
-    /// Cycles through the speed ladder. Changing speed mid-utterance only
-    /// affects the next speak for AVSpeech (native limitation); Piper/Kokoro
-    /// rebuild audio per request so they pick it up immediately.
+    /// Shows the current speed; click opens a slider popover (0.75–2.0×).
+    /// Changing speed mid-utterance only affects the next speak for AVSpeech
+    /// (native limitation); Piper/Kokoro rebuild audio per request so they
+    /// pick it up immediately.
     private var speedButton: some View {
         Button {
-            self.cycleSpeed()
+            self.showSpeedPopover = true
         } label: {
             Text(Self.speedLabel(self.tts.playbackSpeed))
                 .font(.system(size: 11, weight: .medium, design: .monospaced))
@@ -131,16 +131,37 @@ struct PlaybackPillView: View {
                 .clipShape(Capsule())
         }
         .buttonStyle(.plain)
-        .help("Playback speed (click to cycle)")
-    }
-
-    private func cycleSpeed() {
-        let steps = Self.speedSteps
-        guard let currentIndex = steps.firstIndex(where: { abs($0 - self.tts.playbackSpeed) < 0.01 }) else {
-            self.tts.playbackSpeed = 1.0
-            return
+        .help("Playback speed")
+        .popover(isPresented: self.$showSpeedPopover, arrowEdge: .top) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Playback speed")
+                        .font(.system(size: 11, weight: .semibold))
+                    Spacer()
+                    Text(Self.speedLabel(self.tts.playbackSpeed))
+                        .font(.system(size: 11, weight: .medium, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                }
+                HStack(spacing: 8) {
+                    Text("0.75×")
+                        .font(.system(size: 9, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                    Slider(
+                        value: Binding(
+                            get: { Double(self.tts.playbackSpeed) },
+                            set: { self.tts.playbackSpeed = Float($0) }
+                        ),
+                        in: 0.75 ... 2.0,
+                        step: 0.25
+                    )
+                    Text("2×")
+                        .font(.system(size: 9, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(12)
+            .frame(width: 230)
         }
-        self.tts.playbackSpeed = steps[(currentIndex + 1) % steps.count]
     }
 
     static func speedLabel(_ speed: Float) -> String {
