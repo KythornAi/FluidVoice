@@ -823,6 +823,13 @@ extension VoiceEngineSettingsView {
             ))
             .toggleStyle(.switch)
             .font(self.theme.typography.bodySmall)
+
+            Toggle("Collapse repeated words (\"already, already\" → \"already,\")", isOn: Binding(
+                get: { self.settings.textPolishCollapseDuplicatesEnabled },
+                set: { self.settings.textPolishCollapseDuplicatesEnabled = $0 }
+            ))
+            .toggleStyle(.switch)
+            .font(self.theme.typography.bodySmall)
         }
     }
 

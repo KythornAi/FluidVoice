@@ -93,6 +93,7 @@ final class TextPolishService {
         var fixSpelling: Bool = true
         var fixGrammar: Bool = true
         var removeFillerWords: Bool = true
+        var collapseDuplicates: Bool = true
         var formatMode: TextPolishFormatMode = .note
     }
 
@@ -110,6 +111,7 @@ final class TextPolishService {
             fixSpelling: SettingsStore.shared.textPolishFixSpellingEnabled,
             fixGrammar: SettingsStore.shared.textPolishFixGrammarEnabled,
             removeFillerWords: SettingsStore.shared.textPolishRemoveFillersEnabled,
+            collapseDuplicates: SettingsStore.shared.textPolishCollapseDuplicatesEnabled,
             formatMode: SettingsStore.shared.textPolishFormatMode
         )
     }
@@ -266,6 +268,44 @@ final class TextPolishService {
         return text
     }
 
+    /// Collapse immediately repeated words ("already, already" → "already,").
+    /// Catches dictation stutters mid-text, unlike the tail-focused repetition
+    /// guard above. Comparison is case/punctuation-insensitive; the first
+    /// occurrence is kept, inheriting sentence-ending punctuation from the
+    /// last duplicate when it would otherwise be lost ("yes yes." → "yes.").
+    private func collapseDuplicateWords(in text: String) -> String {
+        let tokens = text.split(separator: " ", omittingEmptySubsequences: true).map(String.init)
+        guard tokens.count > 1 else { return text }
+
+        let normalised: (String) -> String = { token in
+            token.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: ".,!?;:\"'()"))
+        }
+
+        var out: [String] = []
+        out.reserveCapacity(tokens.count)
+        var index = 0
+        while index < tokens.count {
+            let token = tokens[index]
+            let key = normalised(token)
+            var end = index + 1
+            var inheritedTerminator: Character?
+            while end < tokens.count, !key.isEmpty, normalised(tokens[end]) == key {
+                if let last = tokens[end].last, ".!?".contains(last) {
+                    inheritedTerminator = last
+                }
+                end += 1
+            }
+            var kept = token
+            if end > index + 1, let terminator = inheritedTerminator, let last = kept.last, !".!?".contains(last) {
+                if ",;:".contains(last) { kept.removeLast() }
+                kept.append(terminator)
+            }
+            out.append(kept)
+            index = end
+        }
+        return out.joined(separator: " ")
+    }
+
     // MARK: - Helpers
 
     /// Match the capitalisation pattern of the original word.
@@ -355,22 +395,28 @@ final class TextPolishService {
         // 1. Repetition filter (first, before other processing)
         result = self.filterRepetition(in: result)
 
-        // 2. Filler word removal
+        // 2. Collapse immediately repeated words ("already, already" → "already,").
+        // Skipped in Terminal mode — repeated command arguments stay verbatim.
+        if options.collapseDuplicates, mode != .terminal {
+            result = self.collapseDuplicateWords(in: result)
+        }
+
+        // 3. Filler word removal
         if options.removeFillerWords {
             result = self.removeFillers(from: result)
         }
 
-        // 3. Spelling correction (skipped in Terminal mode — commands stay verbatim)
+        // 4. Spelling correction (skipped in Terminal mode — commands stay verbatim)
         if options.fixSpelling, mode.allowsSpellingAndLocale {
             result = self.fixMisspellings(in: result)
         }
 
-        // 4. Locale enforcement (after spelling fix, working with correct base words)
+        // 5. Locale enforcement (after spelling fix, working with correct base words)
         if mode.allowsSpellingAndLocale {
             result = self.enforceLocale(in: result, locale: options.locale)
         }
 
-        // 5. Grammar tidy (last, so capitalisation applies to final text).
+        // 6. Grammar tidy (last, so capitalisation applies to final text).
         // Chat mode keeps casual casing and no forced full stop.
         if options.fixGrammar {
             result = self.tidyGrammar(

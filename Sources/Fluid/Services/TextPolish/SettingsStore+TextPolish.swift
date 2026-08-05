@@ -10,6 +10,7 @@ extension SettingsStore {
         static let fixSpelling = "TextPolishFixSpellingEnabled"
         static let fixGrammar = "TextPolishFixGrammarEnabled"
         static let removeFillers = "TextPolishRemoveFillersEnabled"
+        static let collapseDuplicates = "TextPolishCollapseDuplicatesEnabled"
         static let formatMode = "TextPolishFormatMode"
     }
 
@@ -67,6 +68,18 @@ extension SettingsStore {
         set {
             objectWillChange.send()
             UserDefaults.standard.set(newValue, forKey: TextPolishKeys.removeFillers)
+        }
+    }
+
+    /// Collapse immediately repeated words ("already, already" → "already,").
+    /// Default: on. Skipped in Terminal format mode (near-verbatim).
+    var textPolishCollapseDuplicatesEnabled: Bool {
+        get {
+            UserDefaults.standard.object(forKey: TextPolishKeys.collapseDuplicates) as? Bool ?? true
+        }
+        set {
+            objectWillChange.send()
+            UserDefaults.standard.set(newValue, forKey: TextPolishKeys.collapseDuplicates)
         }
     }
 }
