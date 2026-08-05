@@ -123,6 +123,10 @@ final class PiperTTSProvider: NSObject, TTSProvider {
             "--model", modelPath,
             "-f", "-",
             "--length-scale", String(format: "%.2f", lengthScale),
+            // Piper's built-in default is 0.2s, which feels like no pause at
+            // all on brisk voices (Kyle, 5 Aug 2026). 0.35s gives sentences
+            // room to breathe. Commas have no control — that's model-learned.
+            "--sentence-silence", "0.35",
         ]
 
         let stdin = Pipe()

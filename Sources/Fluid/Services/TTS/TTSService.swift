@@ -28,15 +28,22 @@ final class TTSService: ObservableObject {
     @Published var activeProviderID: String {
         didSet {
             UserDefaults.standard.set(self.activeProviderID, forKey: Self.activeProviderDefaultsKey)
+            // Speed is remembered per engine: Piper at 1× feels brisk while
+            // Kokoro at 1× is comfortable, so each engine keeps its own
+            // slider position instead of one global value (Kyle, 5 Aug 2026).
+            UserDefaults.standard.set(self.playbackSpeed, forKey: Self.speedKey(for: oldValue))
+            let saved = UserDefaults.standard.object(forKey: Self.speedKey(for: self.activeProviderID)) as? Float
+            self.playbackSpeed = saved ?? 1.0
             self.prewarmActiveProviderIfNeeded()
         }
     }
 
-    /// User-facing playback speed multiplier (1.0 = normal). Persisted and
-    /// mapped onto each provider's native rate scale (see `providerRate`).
+    /// User-facing playback speed multiplier (1.0 = normal) for the ACTIVE
+    /// engine. Persisted per engine and mapped onto each provider's native
+    /// rate scale (see `providerRate`).
     @Published var playbackSpeed: Float {
         didSet {
-            UserDefaults.standard.set(self.playbackSpeed, forKey: Self.speedDefaultsKey)
+            UserDefaults.standard.set(self.playbackSpeed, forKey: Self.speedKey(for: self.activeProviderID))
             self.applySpeedToProviders()
         }
     }
@@ -45,6 +52,10 @@ final class TTSService: ObservableObject {
     private static let speedDefaultsKey = "tts.playbackSpeed"
     private static let readBackDefaultsKey = "tts.readBackAfterDictation"
     private static let defaultProviderID = "avspeech"
+
+    private static func speedKey(for providerID: String) -> String {
+        "tts.playbackSpeed.\(providerID)"
+    }
 
     /// Phase 5: when enabled, the final transcript is spoken aloud after each
     /// dictation (proofreading aid). Uses the active engine/voice/speed.
@@ -55,8 +66,11 @@ final class TTSService: ObservableObject {
 
     private init() {
         let saved = UserDefaults.standard.string(forKey: Self.activeProviderDefaultsKey)
-        self.activeProviderID = saved ?? Self.defaultProviderID
-        let savedSpeed = UserDefaults.standard.object(forKey: Self.speedDefaultsKey) as? Float
+        let initialProviderID = saved ?? Self.defaultProviderID
+        self.activeProviderID = initialProviderID
+        // Per-engine speed first, legacy global key as migration fallback.
+        let savedSpeed = UserDefaults.standard.object(forKey: Self.speedKey(for: initialProviderID)) as? Float
+            ?? UserDefaults.standard.object(forKey: Self.speedDefaultsKey) as? Float
         self.playbackSpeed = savedSpeed ?? 1.0
         self.readBackAfterDictationEnabled = UserDefaults.standard.bool(forKey: Self.readBackDefaultsKey)
         self.register(AVSpeechTTSProvider())
