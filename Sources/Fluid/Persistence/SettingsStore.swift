@@ -3308,7 +3308,10 @@ final class SettingsStore: ObservableObject {
         if self.dictationPromptProfiles.isEmpty == false {
             self.customDictationPrompt = ""
             // If selection points to nowhere, reset to default to avoid confusion.
+            // Sentinel IDs (Private AI, Local Polish) are valid non-profile selections.
             if let id = self.selectedDictationPromptID,
+               id != PrivateAIProviderPromptFormat.promptSelectionID,
+               id != TextPolishService.promptSelectionID,
                self.dictationPromptProfiles.contains(where: { $0.id == id && $0.mode == .dictate }) == false
             {
                 self.selectedDictationPromptID = nil
@@ -3417,9 +3420,11 @@ final class SettingsStore: ObservableObject {
         }
 
         let privateAIPromptID = PrivateAIProviderPromptFormat.promptSelectionID
+        let localPolishPromptID = TextPolishService.promptSelectionID
 
         if let id = self.selectedDictationPromptID,
            !(PrivateFeatures.privateAIProvider && id == privateAIPromptID),
+           id != localPolishPromptID,
            self.dictationPromptProfiles.contains(where: { $0.id == id && $0.mode == .dictate }) == false
         {
             self.selectedDictationPromptID = nil
