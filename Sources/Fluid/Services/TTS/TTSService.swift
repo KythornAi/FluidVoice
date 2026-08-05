@@ -40,13 +40,22 @@ final class TTSService: ObservableObject {
 
     private static let activeProviderDefaultsKey = "tts.activeProviderID"
     private static let speedDefaultsKey = "tts.playbackSpeed"
+    private static let readBackDefaultsKey = "tts.readBackAfterDictation"
     private static let defaultProviderID = "avspeech"
+
+    /// Phase 5: when enabled, the final transcript is spoken aloud after each
+    /// dictation (proofreading aid). Uses the active engine/voice/speed.
+    /// Default off; toggle lives in the Read Aloud settings card.
+    @Published var readBackAfterDictationEnabled: Bool {
+        didSet { UserDefaults.standard.set(self.readBackAfterDictationEnabled, forKey: Self.readBackDefaultsKey) }
+    }
 
     private init() {
         let saved = UserDefaults.standard.string(forKey: Self.activeProviderDefaultsKey)
         self.activeProviderID = saved ?? Self.defaultProviderID
         let savedSpeed = UserDefaults.standard.object(forKey: Self.speedDefaultsKey) as? Float
         self.playbackSpeed = savedSpeed ?? 1.0
+        self.readBackAfterDictationEnabled = UserDefaults.standard.bool(forKey: Self.readBackDefaultsKey)
         self.register(AVSpeechTTSProvider())
         self.register(PiperTTSProvider())
         self.register(KokoroTTSProvider())
@@ -155,6 +164,15 @@ final class TTSService: ObservableObject {
     func pause() { self.activeProvider?.pause() }
     func resume() { self.activeProvider?.resume() }
     func stop() { self.activeProvider?.stop() }
+
+    /// Stops playback when a new dictation recording starts, so read-aloud
+    /// audio can't bleed into the mic and contaminate the next transcript.
+    /// Parks the pill (per stop semantics) rather than dismissing the session.
+    func stopForRecordingStart() {
+        guard self.playbackState != .idle else { return }
+        DebugLogger.shared.info("Read-aloud: stopping playback for recording start", source: "TTSService")
+        self.stop()
+    }
 
     /// Toggles pause/resume; stops are deliberate via `stop()`.
     func togglePause() {

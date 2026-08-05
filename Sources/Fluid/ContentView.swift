@@ -2448,6 +2448,17 @@ struct ContentView: View {
         if !didTypeExternally, !shouldShowAIProcessingFailure, !didRequestOverlayHideOnStop {
             self.hideOverlayAfterOutput()
         }
+
+        // Phase 5: read-back after dictation — speak the final transcript with
+        // the active TTS engine so Kyle can prooflisten. Only on the normal
+        // route (never in the onboarding sandbox). Playback auto-stops if a new
+        // recording starts (see startRecording → stopForRecordingStart).
+        if shouldPersistOutputs,
+           TTSService.shared.readBackAfterDictationEnabled,
+           !finalText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        {
+            TTSService.shared.speak(text: finalText)
+        }
     }
 
     private func hideOverlayAfterOutput() {
@@ -3094,6 +3105,10 @@ struct ContentView: View {
             DebugLogger.shared.debug("ContentView: start ignored because capture is already active", source: "ContentView")
             return
         }
+
+        // Stop any read-aloud playback so TTS audio can't bleed into the mic
+        // (watch item: trailing-word hallucinations right after read-aloud).
+        TTSService.shared.stopForRecordingStart()
 
         self.advanceOverlayLifecycle()
         self.setActiveRecordingMode(.dictate)

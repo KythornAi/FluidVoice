@@ -106,6 +106,31 @@ struct ReadAloudSettingsSection: View {
                 .frame(width: 160, alignment: .trailing)
             }
 
+            Divider().opacity(0.2)
+
+            // MARK: Read-back after dictation
+
+            HStack(alignment: .center) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Read Back After Dictation")
+                        .font(self.theme.typography.bodyStrong)
+                        .foregroundStyle(self.titleText)
+                    Text("Speaks each finished transcript aloud with the active engine, so you can prooflisten. Starting a new dictation stops playback automatically.")
+                        .font(self.theme.typography.bodySmall)
+                        .foregroundStyle(self.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer()
+
+                Toggle("", isOn: Binding(
+                    get: { self.tts.readBackAfterDictationEnabled },
+                    set: { self.tts.readBackAfterDictationEnabled = $0 }
+                ))
+                .toggleStyle(.switch)
+                .labelsHidden()
+            }
+
             // MARK: Piper voice management
 
             if self.tts.activeProviderID == "piper" {
