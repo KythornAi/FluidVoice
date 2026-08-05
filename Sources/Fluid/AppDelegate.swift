@@ -35,8 +35,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         SettingsStore.shared.initializeAppSettings()
 
         // Start the read-aloud global hotkey (Phase 1: FluidChat read-aloud MVP).
+        // Also touch TTSService so the active engine prewarms at launch —
+        // Kokoro's model load otherwise hits the first Control + R of the day.
         Task { @MainActor in
             ReadAloudHotkeyService.shared.start()
+            TTSService.shared.prewarmActiveProviderIfNeeded()
         }
         let shouldOfferMLXUpgrade = PrivateAIMLXUpgradeCoordinator.prepareOfferIfNeeded()
         LocalAPIServer.shared.start()

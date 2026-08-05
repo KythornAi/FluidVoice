@@ -105,8 +105,8 @@ final class OpenAITTSProvider: NSObject, TTSProvider {
         self.generation &+= 1
         let generation = self.generation
 
-        // Optimistic: pill appears while the network request completes.
-        self.onStateChange?(.speaking)
+        // Preparing state: pill shows a spinner while the network request completes.
+        self.onStateChange?(.preparing)
 
         self.synthesisTask = Task { [weak self] in
             guard let self else { return }
@@ -156,6 +156,7 @@ final class OpenAITTSProvider: NSObject, TTSProvider {
         player.delegate = self
         self.player = player
         player.play()
+        self.onStateChange?(.speaking)
     }
 
     private func synthesize(_ text: String) async throws -> Data {

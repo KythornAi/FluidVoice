@@ -26,7 +26,10 @@ final class TTSService: ObservableObject {
 
     /// Active provider identifier. Persisted so the choice survives relaunches.
     @Published var activeProviderID: String {
-        didSet { UserDefaults.standard.set(self.activeProviderID, forKey: Self.activeProviderDefaultsKey) }
+        didSet {
+            UserDefaults.standard.set(self.activeProviderID, forKey: Self.activeProviderDefaultsKey)
+            self.prewarmActiveProviderIfNeeded()
+        }
     }
 
     /// User-facing playback speed multiplier (1.0 = normal). Persisted and
@@ -262,7 +265,13 @@ final class TTSService: ObservableObject {
         switch self.playbackState {
         case .speaking: self.pause()
         case .paused: self.resume()
-        case .idle: break
+        case .idle, .preparing: break
         }
+    }
+
+    /// Warms engines that pay a big first-speak cost (Kokoro model load).
+    /// Called at app launch and whenever the active engine changes.
+    func prewarmActiveProviderIfNeeded() {
+        (self.activeProvider as? KokoroTTSProvider)?.prewarm()
     }
 }

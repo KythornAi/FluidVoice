@@ -50,9 +50,9 @@ final class PiperTTSProvider: NSObject, TTSProvider {
         self.generation &+= 1
         let generation = self.generation
 
-        // Optimistic: pill appears while the (possibly first-run) setup,
-        // voice download, and synthesis complete.
-        self.onStateChange?(.speaking)
+        // Preparing state: pill shows a spinner while the (possibly
+        // first-run) setup, voice download, and synthesis complete.
+        self.onStateChange?(.preparing)
 
         self.synthesisTask = Task { [weak self] in
             guard let self else { return }
@@ -106,6 +106,7 @@ final class PiperTTSProvider: NSObject, TTSProvider {
         player.delegate = self
         self.player = player
         player.play()
+        self.onStateChange?(.speaking)
     }
 
     /// Runs piper as a subprocess: text in via stdin, WAV out via stdout.

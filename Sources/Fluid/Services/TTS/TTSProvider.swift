@@ -12,6 +12,9 @@ import Foundation
 /// Playback state shared by all TTS providers, surfaced to the playback pill UI.
 enum TTSPlaybackState: Equatable {
     case idle
+    /// Synthesis in progress — no audio yet. Lets the pill show honest
+    /// "preparing" feedback instead of looking stuck (Kyle, 5 Aug 2026).
+    case preparing
     case speaking
     case paused
 }

@@ -15,11 +15,22 @@ struct PlaybackPillView: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Image(systemName: "speaker.wave.2.fill")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.9))
+            if self.tts.playbackState == .preparing {
+                ProgressView()
+                    .controlSize(.small)
+                    .tint(.white.opacity(0.9))
+                    .frame(width: 12, height: 12)
+            } else {
+                Image(systemName: "speaker.wave.2.fill")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.9))
+            }
 
-            if let text = self.tts.currentText {
+            if self.tts.playbackState == .preparing {
+                Text("Preparing voice…")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.white.opacity(0.65))
+            } else if let text = self.tts.currentText {
                 Text(text.replacingOccurrences(of: "\n", with: " "))
                     .font(.system(size: 11))
                     .foregroundStyle(.white.opacity(0.65))
@@ -68,6 +79,8 @@ struct PlaybackPillView: View {
                 self.tts.pause()
             case .paused, .idle:
                 self.tts.playFromPill()
+            case .preparing:
+                break // synthesis in flight; nothing to pause yet
             }
         } label: {
             Image(systemName: self.tts.playbackState == .speaking ? "pause.fill" : "play.fill")
@@ -86,6 +99,7 @@ struct PlaybackPillView: View {
         case .speaking: return "Pause"
         case .paused: return "Resume"
         case .idle: return "Read selection (or replay last passage)"
+        case .preparing: return "Preparing voice…"
         }
     }
 
