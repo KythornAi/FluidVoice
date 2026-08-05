@@ -757,7 +757,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             do {
                 try await SimpleUpdater.shared.checkAndUpdate(
                     owner: "KythornAi",
-                    repo: "FluidVoice",
+                    repo: "FluidChat",
                     includePrerelease: SettingsStore.shared.betaReleasesEnabled
                 )
                 let ok = NSAlert()
@@ -842,7 +842,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             do {
                 let options = try await SimpleUpdater.shared.fetchRecentReleaseBuildOptions(
                     owner: "KythornAi",
-                    repo: "FluidVoice",
+                    repo: "FluidChat",
                     limit: 3,
                     includePrerelease: SettingsStore.shared.betaReleasesEnabled
                 )

@@ -362,9 +362,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             "Manual update check requested. Current version: \(currentVersion)",
             source: "AppDelegate"
         )
-        DebugLogger.shared.info("Checking repository: KythornAi/FluidVoice", source: "AppDelegate")
+        DebugLogger.shared.info("Checking repository: KythornAi/FluidChat", source: "AppDelegate")
         DebugLogger.shared.debug("🔍 DEBUG: Manual update check started - Current version: \(currentVersion)", source: "AppDelegate")
-        DebugLogger.shared.debug("🔍 DEBUG: Repository: KythornAi/FluidVoice", source: "AppDelegate")
+        DebugLogger.shared.debug("🔍 DEBUG: Repository: KythornAi/FluidChat", source: "AppDelegate")
         let includePrerelease = SettingsStore.shared.betaReleasesEnabled
         DebugLogger.shared.info(
             "Beta releases opt-in: \(SettingsStore.shared.betaReleasesEnabled)",
@@ -376,7 +376,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
                 // Use our tolerant updater to handle v-prefixed tags and 2-part versions
                 try await SimpleUpdater.shared.checkAndUpdate(
                     owner: "KythornAi",
-                    repo: "FluidVoice",
+                    repo: "FluidChat",
                     includePrerelease: includePrerelease
                 )
                 // If we get here, an update was found; SimpleUpdater will relaunch on success
@@ -423,13 +423,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             // Wait 3 seconds after launch before checking
             try? await Task.sleep(nanoseconds: 3_000_000_000)
 
-            DebugLogger.shared.info("Performing automatic update check for KythornAi/FluidVoice", source: "AppDelegate")
+            DebugLogger.shared.info("Performing automatic update check for KythornAi/FluidChat", source: "AppDelegate")
 
             do {
                 let includePrerelease = SettingsStore.shared.betaReleasesEnabled
                 let result = try await SimpleUpdater.shared.checkForUpdate(
                     owner: "KythornAi",
-                    repo: "FluidVoice",
+                    repo: "FluidChat",
                     includePrerelease: includePrerelease
                 )
 

@@ -474,7 +474,7 @@ struct SettingsView: View {
                                             let includePrerelease = SettingsStore.shared.betaReleasesEnabled
                                             try await SimpleUpdater.shared.checkAndUpdate(
                                                 owner: "KythornAi",
-                                                repo: "FluidVoice",
+                                                repo: "FluidChat",
                                                 includePrerelease: includePrerelease
                                             )
                                             let ok = NSAlert()
@@ -1811,7 +1811,7 @@ struct SettingsView: View {
             do {
                 let options = try await SimpleUpdater.shared.fetchRecentReleaseBuildOptions(
                     owner: "KythornAi",
-                    repo: "FluidVoice",
+                    repo: "FluidChat",
                     limit: 3,
                     includePrerelease: SettingsStore.shared.betaReleasesEnabled
                 )
