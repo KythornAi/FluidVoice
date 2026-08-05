@@ -47,7 +47,7 @@ struct ReadAloudSettingsSection: View {
                 .font(self.theme.typography.bodySmallStrong)
                 .foregroundStyle(self.titleText)
 
-            Text("Highlight text anywhere and press the read-aloud shortcut to hear it. Queue whole passages for listening sessions with ⇧ added to the shortcut (⌃⇧R): each highlight joins the queue and plays in turn, with a skip button and progress on the pill. Local engines work free and offline; cloud engines are optional and use your own API key.")
+            Text("Highlight text anywhere and press the read-aloud shortcut (Control + R) to hear it. For listening sessions, press Control + J instead: each highlighted passage joins a queue and plays in turn, with a skip button and progress on the pill. Local engines work free and offline; cloud engines are optional and use your own API key.")
                 .font(.caption)
                 .foregroundStyle(self.secondaryText)
 

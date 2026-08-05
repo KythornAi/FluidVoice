@@ -21,9 +21,11 @@ final class ReadAloudHotkeyService {
     static let defaultShortcut = HotkeyShortcut(keyCode: 15, modifierFlags: [.control])
     private static let shortcutDefaultsKey = "tts.readAloudShortcut"
 
-    /// Phase 5 queue reading: Control + Shift + R adds the highlighted
-    /// passage to the listening queue instead of taking over playback.
-    static let defaultQueueShortcut = HotkeyShortcut(keyCode: 15, modifierFlags: [.control, .shift])
+    /// Phase 5 queue reading: Control + J adds the highlighted passage to
+    /// the listening queue instead of taking over playback. Single-modifier
+    /// combo — Kyle's hybrid keyboard handles multi-modifier combos poorly,
+    /// so ⌃⇧R was replaced with this (5 Aug 2026).
+    static let defaultQueueShortcut = HotkeyShortcut(keyCode: 38, modifierFlags: [.control])
     private static let queueShortcutDefaultsKey = "tts.queueReadAloudShortcut"
 
     private var globalMonitor: Any?
