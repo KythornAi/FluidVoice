@@ -94,6 +94,10 @@ final class TTSService: ObservableObject {
             // Note: currentText intentionally survives .idle so a parked
             // pill can replay the last passage.
         }
+        provider.onNaturalFinish = { [weak self] in
+            guard let self, provider.identifier == self.activeProviderID else { return }
+            self.handleNaturalFinish()
+        }
         provider.rate = Self.providerRate(forSpeed: self.playbackSpeed, providerID: provider.identifier)
         self.providers[provider.identifier] = provider
     }
@@ -136,16 +140,23 @@ final class TTSService: ObservableObject {
     }
 
     func speak(text: String) {
+        // Takeover semantics (⌃R, dictation read-back): a fresh explicit speak
+        // always wins and clears any pending queue.
+        self.clearQueue()
         self.hasSession = true
         self.currentText = text
         self.activeProvider?.speak(text: text)
     }
 
-    /// Pill play button: resume if paused, read the current selection if any
-    /// is highlighted, otherwise replay the last passage.
+    /// Pill play button: resume if paused, continue a pending queue, read the
+    /// current selection if any is highlighted, otherwise replay last passage.
     func playFromPill() {
         if self.playbackState == .paused {
             self.resume()
+            return
+        }
+        if self.playbackState == .idle, !self.queue.isEmpty {
+            self.playNextQueued()
             return
         }
         if self.readSelection() { return }
@@ -157,8 +168,80 @@ final class TTSService: ObservableObject {
     /// Pill close button: stop playback and dismiss the parked pill.
     func dismissSession() {
         self.stop()
+        self.clearQueue()
         self.hasSession = false
         self.currentText = nil
+    }
+
+    // MARK: - Queue (Phase 5: ebook listening sessions)
+
+    /// Upcoming passages, in order. The passage currently playing lives in
+    /// `currentText`, not in here.
+    @Published private(set) var queue: [String] = []
+
+    /// Passages completed or skipped this queue session (drives the pill's
+    /// "2 of 4" label).
+    @Published private(set) var queueCompletedCount = 0
+
+    /// Pill label for an active queue session, e.g. "2 of 4".
+    var queuePositionLabel: String {
+        let current = self.queueCompletedCount + 1
+        let total = current + self.queue.count
+        return "\(current) of \(total)"
+    }
+
+    /// ⌃⇧R entry point: capture the highlighted text and add it to the queue.
+    /// Starts playback immediately when nothing is playing.
+    @discardableResult
+    func enqueueSelection() -> Bool {
+        var text = TextSelectionService.shared.getSelectedText()
+        if text == nil || text!.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            text = SelectionCopyCapture.capture()
+        }
+        guard let text,
+              !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        else {
+            DebugLogger.shared.info("Queue: no selected text captured", source: "TTSService")
+            return false
+        }
+        self.queue.append(text)
+        self.hasSession = true
+        DebugLogger.shared.info("Queue: passage added (\(self.queue.count) pending)", source: "TTSService")
+        if self.playbackState == .idle {
+            self.playNextQueued()
+        }
+        return true
+    }
+
+    /// Pill skip button: drop the current passage and start the next queued
+    /// one; with nothing pending, behaves like stop.
+    func skipToNext() {
+        guard !self.queue.isEmpty else {
+            self.stop()
+            return
+        }
+        self.queueCompletedCount += 1
+        self.playNextQueued()
+    }
+
+    private func playNextQueued() {
+        guard !self.queue.isEmpty else { return }
+        let next = self.queue.removeFirst()
+        self.currentText = next
+        self.activeProvider?.speak(text: next)
+    }
+
+    /// Active provider finished a passage naturally (never on stop/cancel/
+    /// supersede). Advances the queue when passages are pending.
+    private func handleNaturalFinish() {
+        guard !self.queue.isEmpty else { return }
+        self.queueCompletedCount += 1
+        self.playNextQueued()
+    }
+
+    private func clearQueue() {
+        self.queue.removeAll()
+        self.queueCompletedCount = 0
     }
 
     func pause() { self.activeProvider?.pause() }

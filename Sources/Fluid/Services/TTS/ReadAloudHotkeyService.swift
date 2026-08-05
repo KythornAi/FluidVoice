@@ -21,6 +21,11 @@ final class ReadAloudHotkeyService {
     static let defaultShortcut = HotkeyShortcut(keyCode: 15, modifierFlags: [.control])
     private static let shortcutDefaultsKey = "tts.readAloudShortcut"
 
+    /// Phase 5 queue reading: Control + Shift + R adds the highlighted
+    /// passage to the listening queue instead of taking over playback.
+    static let defaultQueueShortcut = HotkeyShortcut(keyCode: 15, modifierFlags: [.control, .shift])
+    private static let queueShortcutDefaultsKey = "tts.queueReadAloudShortcut"
+
     private var globalMonitor: Any?
     private var localMonitor: Any?
     private var isStarted = false
@@ -34,6 +39,15 @@ final class ReadAloudHotkeyService {
         }
     }
 
+    /// The active queue-reading shortcut. Persisted across relaunches.
+    private(set) var queueShortcut: HotkeyShortcut {
+        didSet {
+            if let data = try? JSONEncoder().encode(self.queueShortcut) {
+                UserDefaults.standard.set(data, forKey: Self.queueShortcutDefaultsKey)
+            }
+        }
+    }
+
     private init() {
         if let data = UserDefaults.standard.data(forKey: Self.shortcutDefaultsKey),
            let saved = try? JSONDecoder().decode(HotkeyShortcut.self, from: data)
@@ -42,11 +56,23 @@ final class ReadAloudHotkeyService {
         } else {
             self.shortcut = Self.defaultShortcut
         }
+        if let data = UserDefaults.standard.data(forKey: Self.queueShortcutDefaultsKey),
+           let saved = try? JSONDecoder().decode(HotkeyShortcut.self, from: data)
+        {
+            self.queueShortcut = saved
+        } else {
+            self.queueShortcut = Self.defaultQueueShortcut
+        }
     }
 
     func updateShortcut(_ newShortcut: HotkeyShortcut) {
         self.shortcut = newShortcut
         DebugLogger.shared.info("Read-aloud shortcut updated: \(newShortcut.displayString)", source: "ReadAloudHotkeyService")
+    }
+
+    func updateQueueShortcut(_ newShortcut: HotkeyShortcut) {
+        self.queueShortcut = newShortcut
+        DebugLogger.shared.info("Queue-read shortcut updated: \(newShortcut.displayString)", source: "ReadAloudHotkeyService")
     }
 
     /// Installs global + local key monitors. Safe to call multiple times.
@@ -58,9 +84,16 @@ final class ReadAloudHotkeyService {
             self?.handle(event)
         }
         self.localMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            guard let self, self.matches(event) else { return event }
-            self.trigger()
-            return nil // consume so the shortcut doesn't type into our own windows
+            guard let self else { return event }
+            if self.matchesQueue(event) {
+                self.triggerQueue()
+                return nil // consume so the shortcut doesn't type into our own windows
+            }
+            if self.matches(event) {
+                self.trigger()
+                return nil
+            }
+            return event
         }
 
         DebugLogger.shared.info(
@@ -72,12 +105,22 @@ final class ReadAloudHotkeyService {
     // MARK: - Matching & trigger
 
     private func handle(_ event: NSEvent) {
+        // Queue shortcut checked first: ⌃⇧R is a strict superset of ⌃R's
+        // modifiers (matching is exact, but keep the order explicit).
+        if self.matchesQueue(event) {
+            self.triggerQueue()
+            return
+        }
         guard self.matches(event) else { return }
         self.trigger()
     }
 
     private func matches(_ event: NSEvent) -> Bool {
         self.shortcut.matches(keyCode: event.keyCode, modifiers: event.modifierFlags)
+    }
+
+    private func matchesQueue(_ event: NSEvent) -> Bool {
+        self.queueShortcut.matches(keyCode: event.keyCode, modifiers: event.modifierFlags)
     }
 
     private func trigger() {
@@ -93,6 +136,19 @@ final class ReadAloudHotkeyService {
                 DebugLogger.shared.info("Read-aloud stopped via hotkey (no selection)", source: "ReadAloudHotkeyService")
             } else {
                 DebugLogger.shared.info("Read-aloud hotkey: no selection captured", source: "ReadAloudHotkeyService")
+            }
+        }
+    }
+
+    /// ⌃⇧R: add the highlighted passage to the listening queue. Never stops
+    /// or interrupts — with no selection it simply does nothing.
+    private func triggerQueue() {
+        Task { @MainActor in
+            let tts = TTSService.shared
+            if tts.enqueueSelection() {
+                DebugLogger.shared.info("Queue: passage added via hotkey", source: "ReadAloudHotkeyService")
+            } else {
+                DebugLogger.shared.info("Queue hotkey: no selection captured", source: "ReadAloudHotkeyService")
             }
         }
     }

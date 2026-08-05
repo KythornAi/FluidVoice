@@ -28,6 +28,14 @@ struct PlaybackPillView: View {
                     .frame(maxWidth: 180)
             }
 
+            // Queue session indicator + skip (Phase 5 queue reading)
+            if self.tts.queueCompletedCount > 0 || !self.tts.queue.isEmpty {
+                Text(self.tts.queuePositionLabel)
+                    .font(.system(size: 10, weight: .medium, design: .monospaced))
+                    .foregroundStyle(.white.opacity(0.55))
+                self.skipButton
+            }
+
             self.playPauseButton
             self.stopButton
             self.closeButton
@@ -79,6 +87,23 @@ struct PlaybackPillView: View {
         case .paused: return "Resume"
         case .idle: return "Read selection (or replay last passage)"
         }
+    }
+
+    /// Skip button (queue sessions): drop the current passage and start the
+    /// next queued one; with nothing pending it behaves like stop.
+    private var skipButton: some View {
+        Button {
+            self.tts.skipToNext()
+        } label: {
+            Image(systemName: "forward.end.fill")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.85))
+                .frame(width: 24, height: 24)
+                .background(Color.white.opacity(0.08))
+                .clipShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .help(self.tts.queue.isEmpty ? "Finish queue (nothing else pending)" : "Skip to next queued passage")
     }
 
     /// Stops the audio but keeps the pill parked — only × dismisses it.

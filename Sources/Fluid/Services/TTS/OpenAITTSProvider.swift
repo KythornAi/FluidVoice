@@ -21,6 +21,8 @@ final class OpenAITTSProvider: NSObject, TTSProvider {
     let displayName = "OpenAI TTS (cloud · paid, your key)"
 
     var onStateChange: ((TTSPlaybackState) -> Void)?
+    /// Fired only from audioPlayerDidFinishPlaying — drives queue advance.
+    var onNaturalFinish: (() -> Void)?
 
     /// Speed multiplier (1.0 = normal); OpenAI accepts 0.25...4.0.
     var rate: Float = 1.0
@@ -230,6 +232,7 @@ extension OpenAITTSProvider: AVAudioPlayerDelegate {
             guard self.player === player else { return }
             self.player = nil
             self.onStateChange?(.idle)
+            self.onNaturalFinish?()
         }
     }
 }

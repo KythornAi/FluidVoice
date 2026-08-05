@@ -16,6 +16,8 @@ final class PiperTTSProvider: NSObject, TTSProvider {
     let displayName = "Piper (local neural voices)"
 
     var onStateChange: ((TTSPlaybackState) -> Void)?
+    /// Fired only from audioPlayerDidFinishPlaying — drives queue advance.
+    var onNaturalFinish: (() -> Void)?
 
     /// Speed multiplier (1.0 = normal); translated to piper's length_scale.
     var rate: Float = 1.0
@@ -174,6 +176,7 @@ extension PiperTTSProvider: AVAudioPlayerDelegate {
             guard self.player === player else { return }
             self.player = nil
             self.onStateChange?(.idle)
+            self.onNaturalFinish?()
         }
     }
 }

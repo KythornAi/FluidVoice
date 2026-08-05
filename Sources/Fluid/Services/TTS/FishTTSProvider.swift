@@ -23,6 +23,8 @@ final class FishTTSProvider: NSObject, TTSProvider {
     let displayName = "Fish Audio (cloud · free tier)"
 
     var onStateChange: ((TTSPlaybackState) -> Void)?
+    /// Fired only from audioPlayerDidFinishPlaying — drives queue advance.
+    var onNaturalFinish: (() -> Void)?
 
     /// Speed multiplier (1.0 = normal); maps onto Fish `prosody.speed`.
     var rate: Float = 1.0
@@ -236,6 +238,7 @@ extension FishTTSProvider: AVAudioPlayerDelegate {
             guard self.player === player else { return }
             self.player = nil
             self.onStateChange?(.idle)
+            self.onNaturalFinish?()
         }
     }
 }

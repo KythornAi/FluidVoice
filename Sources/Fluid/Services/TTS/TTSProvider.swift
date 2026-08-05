@@ -35,4 +35,18 @@ protocol TTSProvider: AnyObject {
 
     /// Called by TTSService when playback state changes, for UI updates.
     var onStateChange: ((TTSPlaybackState) -> Void)? { get set }
+
+    /// Called only when a passage finishes playing **naturally** — never on
+    /// stop, cancel, supersede-by-newer-speak, or error. Drives queue
+    /// auto-advance (Phase 5). Optional; providers that don't implement it
+    /// simply never auto-advance.
+    var onNaturalFinish: (() -> Void)? { get set }
+}
+
+extension TTSProvider {
+    /// Default no-op so existing providers compile unchanged.
+    var onNaturalFinish: (() -> Void)? {
+        get { nil }
+        set {}
+    }
 }

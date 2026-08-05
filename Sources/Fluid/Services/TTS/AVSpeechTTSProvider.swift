@@ -15,6 +15,8 @@ final class AVSpeechTTSProvider: NSObject, TTSProvider {
     let displayName = "System Voices (AVSpeech)"
 
     var onStateChange: ((TTSPlaybackState) -> Void)?
+    /// Fired from `didFinish` only (never `didCancel`) — drives queue advance.
+    var onNaturalFinish: (() -> Void)?
 
     /// AVSpeech rate range is 0.0...1.0; 0.5 is the system default.
     var rate: Float = AVSpeechUtteranceDefaultSpeechRate
@@ -62,7 +64,10 @@ extension AVSpeechTTSProvider: @preconcurrency AVSpeechSynthesizerDelegate {
     }
 
     nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
-        Task { @MainActor in self.onStateChange?(.idle) }
+        Task { @MainActor in
+            self.onStateChange?(.idle)
+            self.onNaturalFinish?()
+        }
     }
 
     nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didPause utterance: AVSpeechUtterance) {

@@ -18,6 +18,8 @@ final class KokoroTTSProvider: NSObject, TTSProvider {
     let displayName = "Kokoro-82M (local neural)"
 
     var onStateChange: ((TTSPlaybackState) -> Void)?
+    /// Fired only from audioPlayerDidFinishPlaying — drives queue advance.
+    var onNaturalFinish: (() -> Void)?
 
     /// Speed multiplier, passed straight through to Kokoro's `speed`.
     var rate: Float = 1.0
@@ -174,6 +176,7 @@ extension KokoroTTSProvider: AVAudioPlayerDelegate {
             guard self.player === player else { return }
             self.player = nil
             self.onStateChange?(.idle)
+            self.onNaturalFinish?()
         }
     }
 }
