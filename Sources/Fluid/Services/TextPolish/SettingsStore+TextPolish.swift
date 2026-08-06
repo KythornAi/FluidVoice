@@ -11,6 +11,7 @@ extension SettingsStore {
         static let fixGrammar = "TextPolishFixGrammarEnabled"
         static let removeFillers = "TextPolishRemoveFillersEnabled"
         static let collapseDuplicates = "TextPolishCollapseDuplicatesEnabled"
+        static let convertNumbers = "TextPolishConvertNumbersEnabled"
         static let formatMode = "TextPolishFormatMode"
     }
 
@@ -80,6 +81,19 @@ extension SettingsStore {
         set {
             objectWillChange.send()
             UserDefaults.standard.set(newValue, forKey: TextPolishKeys.collapseDuplicates)
+        }
+    }
+
+    /// Convert spoken numbers to digits ("twenty five" → "25",
+    /// "zero point eight five" → "0.85", "ten percent" → "10%").
+    /// Default: on. Skipped in Terminal format mode (near-verbatim).
+    var textPolishConvertNumbersEnabled: Bool {
+        get {
+            UserDefaults.standard.object(forKey: TextPolishKeys.convertNumbers) as? Bool ?? true
+        }
+        set {
+            objectWillChange.send()
+            UserDefaults.standard.set(newValue, forKey: TextPolishKeys.convertNumbers)
         }
     }
 }

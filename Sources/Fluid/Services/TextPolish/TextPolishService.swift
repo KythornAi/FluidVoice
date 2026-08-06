@@ -94,6 +94,7 @@ final class TextPolishService {
         var fixGrammar: Bool = true
         var removeFillerWords: Bool = true
         var collapseDuplicates: Bool = true
+        var convertNumbers: Bool = true
         var formatMode: TextPolishFormatMode = .note
     }
 
@@ -112,6 +113,7 @@ final class TextPolishService {
             fixGrammar: SettingsStore.shared.textPolishFixGrammarEnabled,
             removeFillerWords: SettingsStore.shared.textPolishRemoveFillersEnabled,
             collapseDuplicates: SettingsStore.shared.textPolishCollapseDuplicatesEnabled,
+            convertNumbers: SettingsStore.shared.textPolishConvertNumbersEnabled,
             formatMode: SettingsStore.shared.textPolishFormatMode
         )
     }
@@ -416,7 +418,14 @@ final class TextPolishService {
             result = self.enforceLocale(in: result, locale: options.locale)
         }
 
-        // 6. Grammar tidy (last, so capitalisation applies to final text).
+        // 6. Spoken numbers → digits (Phase 6). Skipped in Terminal mode —
+        // commands stay verbatim. Lone zero…nine stay words unless decimal,
+        // percent, or negative (see TextPolishNumbers.swift).
+        if options.convertNumbers, mode != .terminal {
+            result = TextPolishNumberConverter.convert(in: result)
+        }
+
+        // 7. Grammar tidy (last, so capitalisation applies to final text).
         // Chat mode keeps casual casing and no forced full stop.
         if options.fixGrammar {
             result = self.tidyGrammar(

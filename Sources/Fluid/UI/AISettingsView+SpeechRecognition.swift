@@ -830,6 +830,13 @@ extension VoiceEngineSettingsView {
             ))
             .toggleStyle(.switch)
             .font(self.theme.typography.bodySmall)
+
+            Toggle("Convert spoken numbers to digits (\"twenty five\" → \"25\", \"point five\" → \".5\")", isOn: Binding(
+                get: { self.settings.textPolishConvertNumbersEnabled },
+                set: { self.settings.textPolishConvertNumbersEnabled = $0 }
+            ))
+            .toggleStyle(.switch)
+            .font(self.theme.typography.bodySmall)
         }
     }
 
